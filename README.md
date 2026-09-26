@@ -80,7 +80,7 @@ Residents (GHS 2025) are placed on Master Plan housing parcels, weighted by plot
 
 ### Bus priority screening
 
-Links shared by many buses are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Speed-band snapshots are collected every 15 minutes, so this section fills in after the first weekday AM peak (28 September 2026).
+Links shared by many buses are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Speed-band snapshots are collected about every 20 minutes (a 15-minute pause after each 4-minute pull), so this section fills in after the first weekday AM peak (28 September 2026).
 
 ## Method
 
@@ -132,7 +132,7 @@ python src/fetch_public.py                          # public data, no key needed
 curl -o data/raw/Singapore.osm.gz https://download.bbbike.org/osm/bbbike/Singapore/Singapore.osm.gz
 LTA_KEY=... python src/datamall.py static pv        # DataMall (free account key)
 LTA_KEY=... python src/datamall.py od 202608 202607  # origin-destination volumes
-LTA_KEY=... bash src/sample_speed.sh 202609301000   # speed-band snapshots every 15 min
+LTA_KEY=... bash src/sample_speed.sh 202609301000   # speed-band snapshots, about every 20 min
 python run_all.py                                   # walking network (first run), database, analyses, dashboard
 python -m pytest -q tests && python tests/mutate.py
 ```
