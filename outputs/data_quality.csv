@@ -1,0 +1,14 @@
+check,table,failing_rows,total_rows,pass_rate,note
+"primary key unique (ServiceNo, Direction, StopSequence)",bus_routes,0,26842,1.0,
+stop sequence continuous (step = 1),bus_routes,236,26842,0.9912,
+cumulative distance non-decreasing along route,bus_links,1,26043,1.0,
+link length plausible (0 < km <= 5),bus_links,209,26043,0.992,0 km = consecutive stops sharing a location; >5 km = non-stop sections of express and City Direct services (e.g. 646-649)
+route stop exists in BusStops master,bus_routes,0,5209,1.0,unique stop codes
+LTA and OSM stop positions agree within 50 m,stops,269,5194,0.9482,median gap 6.5 m
+stop has non-zero coordinates,stops,0,5209,1.0,
+route service exists in BusServices,bus_routes,0,799,1.0,service-direction pairs
+AM peak frequency present,bus_services,142,802,0.8229,
+volume stop code exists in route network,stop_volume,129,812444,0.9998,
+volume non-negative,stop_volume,0,812444,1.0,
+hour within 0-23,stop_volume,14,812444,1.0,
+stop inside Singapore bounding box,stops,1,5209,0.9998,"expected: 46239 Larkin Terminal, Johor Bahru (cross-border service 170)"

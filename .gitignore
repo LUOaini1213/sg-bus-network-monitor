@@ -1,0 +1,7 @@
+data/raw/
+data/processed/*.duckdb
+.env
+__pycache__/
+*.pyc
+outputs/priority_screen_smoke.csv
+.pytest_cache/
