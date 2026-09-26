@@ -8,7 +8,7 @@ An open-data pipeline and dashboard for Singapore's public bus network. It cover
 - how many residents live within 400 m of a stop;
 - which shared corridors are slow enough to screen for bus priority.
 
-**Dashboard:** `docs/index.html` (GitHub Pages)
+**Dashboard:** https://luoaini1213.github.io/sg-bus-network-monitor/
 
 Data: LTA DataMall (September 2026 network, passenger volume for February, June, July and August 2026), URA Master Plan 2019, SingStat General Household Survey 2025 and OpenStreetMap. Everything is rebuilt from raw files by one command, and every table has recorded quality checks.
 
