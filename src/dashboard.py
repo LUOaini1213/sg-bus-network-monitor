@@ -80,38 +80,86 @@ def profile():
     return layout(fig, 420)
 
 
+CAT_COLORS = {"services withdrawn or rerouted away": RED, "services added or rerouted here": "#2e7d32",
+              "service change (direction unclear)": "#8e44ad", "academic term": BLUE,
+              "academic term (within 600 m of a campus)": "#7fa7cf",
+              "school-term seasonality (June holidays in the baseline)": "#16a085",
+              "sustained step up since July": ORANGE, "unexplained": "#52606d"}
+
+
 def surveillance_map():
+    e = pd.read_csv(OUT / "anomaly_evidence.csv", dtype={"stop": str})
+    xy = pd.read_csv(OUT / "surveillance_2026-08_vs_baseline_median.csv", dtype={"stop": str})[["stop", "Latitude", "Longitude"]]
+    e = e.merge(xy, on="stop")
     fig = go.Figure()
-    buttons, n = [], 0
-    for i, base in enumerate(["2026-07", "2026-02"]):
-        s = pd.read_csv(OUT / f"surveillance_2026-08_vs_{base}.csv", dtype={"stop": str})
-        for flag, col in (("surge", BLUE), ("drop", RED)):
-            d = s[s.flag == flag]
-            fig.add_trace(go.Scattermapbox(
-                lat=d.Latitude, lon=d.Longitude, mode="markers", name=f"{flag} vs {base}", visible=(i == 0),
-                marker=dict(size=np.clip(np.sqrt(d[["2026-08", base]].max(axis=1)) / 3, 6, 22), color=col,
-                            opacity=0.8),
-                text=[f"{r.stop} {r.Description} ({r.RoadName})<br>{r[base]:,.0f} → {r['2026-08']:,.0f} "
-                      f"boardings/weekday<br>{r['pct_change']:+.0%} ({r.vs_network:+.0%} vs network), z = {r.robust_z:.1f}"
-                      for _, r in d.iterrows()], hoverinfo="text"))
-            n += 1
-    for i, base in enumerate(["2026-07", "2026-02"]):
-        vis = [j // 2 == i for j in range(n)]
-        buttons.append(dict(label=f"Aug 2026 vs {dt.date(int(base[:4]), int(base[5:]), 1):%b %Y}", method="update",
-                            args=[{"visible": vis}]))
-    layout(fig, 560, mapbox=MAP)
-    fig.update_layout(updatemenus=[dict(buttons=buttons, x=0.99, xanchor="right", y=0.99, bgcolor="white")])
+    for cat, d in e.groupby("category"):
+        fig.add_trace(go.Scattermapbox(
+            lat=d.Latitude, lon=d.Longitude, mode="markers", name=f"{cat} ({len(d)})",
+            marker=dict(size=np.clip(np.sqrt(d[["2026-08", "baseline_median"]].max(axis=1)) / 3, 7, 22),
+                        color=CAT_COLORS.get(cat, GREY), opacity=0.85),
+            text=[f"{r.stop} {r.Description}<br>baseline {r.baseline_median:,.0f} -> Aug {r['2026-08']:,.0f} per weekday "
+                  f"({r['pct_change']:+.0%})<br>Feb/Jun/Jul/Aug: {r['wd_2026-02']:,.0f} / {r['wd_2026-06']:,.0f} / "
+                  f"{r['wd_2026-07']:,.0f} / {r['wd_2026-08']:,.0f}<br>{cat}"
+                  + (f"<br>verified: {r.verified_event}" if isinstance(r.verified_event, str) else "")
+                  for _, r in d.iterrows()], hoverinfo="text"))
+    n = pd.read_csv(OUT / "new_stops_2026.csv", dtype={"stop": str})
+    locs = pd.read_csv(OUT / "stop_profile_2026-08.csv", dtype={"stop": str})[["stop", "Latitude", "Longitude"]]
+    nxy = n.merge(locs, on="stop")
+    fig.add_trace(go.Scattermapbox(
+        lat=nxy.Latitude, lon=nxy.Longitude, mode="markers", name=f"new stop ({len(nxy)})",
+        marker=dict(size=12, color="black"),
+        text=[f"{r.stop} {r.Description} (new; Jul {r['2026-07']:,.0f} -> Aug {r['2026-08']:,.0f})" for _, r in nxy.iterrows()],
+        hoverinfo="text"))
+    layout(fig, 600, mapbox=MAP)
+    fig.update_layout(legend=dict(orientation="v", y=0.99, x=0.01, bgcolor="rgba(255,255,255,0.85)", font=dict(size=11)))
     return fig
 
 
-def surveillance_table(base):
-    s = pd.read_csv(OUT / f"surveillance_2026-08_vs_{base}.csv", dtype={"stop": str})
-    s = s[s.flag != ""].head(12)
-    rows = "".join(f"<tr><td>{r.stop}</td><td>{html.escape(str(r.Description))}</td><td>{html.escape(str(r.RoadName))}</td>"
-                   f"<td class=n>{r[base]:,.0f}</td><td class=n>{r['2026-08']:,.0f}</td>"
-                   f"<td class=n>{r['pct_change']:+.0%}</td><td class=n>{r.robust_z:.1f}</td></tr>" for _, r in s.iterrows())
-    return (f"<table><thead><tr><th>Stop</th><th>Name</th><th>Road</th><th>{base}</th><th>2026-08</th>"
-            f"<th>Change</th><th>z</th></tr></thead><tbody>{rows}</tbody></table>")
+def anomaly_table():
+    e = pd.read_csv(OUT / "anomaly_evidence.csv", dtype={"stop": str})
+    order = {c: i for i, c in enumerate(CAT_COLORS)}
+    e = e.assign(o=e.category.map(order)).sort_values(["o", "robust_z"])
+
+    def f(x):
+        return "" if pd.isna(x) else f"{x:,.0f}"
+
+    rows = "".join(
+        f"<tr><td>{r.stop}</td><td>{html.escape(str(r.Description))}</td>"
+        f"<td class=n>{f(r['wd_2026-02'])}</td><td class=n>{f(r['wd_2026-06'])}</td><td class=n>{f(r['wd_2026-07'])}</td>"
+        f"<td class=n>{f(r['wd_2026-08'])}</td><td class=n>{r['pct_change']:+.0%}</td>"
+        f"<td><span class=dot style='background:{CAT_COLORS.get(r.category, GREY)}'></span>{html.escape(r.category)}</td>"
+        f"<td>{'' if pd.isna(r.verified_event) else html.escape(r.verified_event)}</td></tr>" for _, r in e.iterrows())
+    return ("<table><thead><tr><th>Stop</th><th>Name</th><th>Feb</th><th>Jun</th><th>Jul</th><th>Aug</th>"
+            "<th>vs baseline</th><th>Category</th><th>Verified event</th></tr></thead><tbody>" + rows + "</tbody></table>")
+
+
+def od_note():
+    m = pd.read_csv(OUT / "od_planning_area_2026-08.csv")
+    intra = m[m.origin_pa == m.dest_pa].trips_per_weekday.sum() / m.trips_per_weekday.sum()
+    q = pd.read_csv(OUT / "od_quality.csv")
+    return (f"{intra:.0%} of bus trips start and end in the same planning area, so buses mostly carry local and feeder "
+            f"trips. OD totals match the stop tap-in totals to within {q.difference_pct.abs().max():.3f}%.")
+
+
+def od_pairs():
+    m = pd.read_csv(OUT / "od_planning_area_2026-08.csv")
+    x = m[m.origin_pa != m.dest_pa].head(15).iloc[::-1]
+    fig = go.Figure(go.Bar(x=x.trips_per_weekday, y=(x.origin_pa.str.title() + " -> " + x.dest_pa.str.title()),
+                           orientation="h", marker_color=BLUE,
+                           hovertemplate="%{y}: %{x:,.0f} trips per weekday<extra></extra>"))
+    fig.update_xaxes(title="bus trips per weekday between planning areas, August 2026", gridcolor="#e4e7eb")
+    return layout(fig, 480)
+
+
+def od_lengths():
+    h = pd.read_csv(OUT / "od_trip_length_2026-08.csv")
+    h.columns = ["km", "trips"]
+    labels = h.km.str.strip("[)").str.replace(", ", " to ") + " km"
+    fig = go.Figure(go.Bar(x=labels, y=h.trips / h.trips.sum() * 100, marker_color=BLUE,
+                           hovertemplate="%{x}: %{y:.1f}% of trips<extra></extra>"))
+    fig.update_yaxes(title="% of weekday trips", gridcolor="#e4e7eb")
+    fig.update_xaxes(title="straight-line distance between tap-in and tap-out stops")
+    return layout(fig, 360)
 
 
 def coverage_map():
@@ -138,17 +186,17 @@ def coverage_map():
 
 
 def coverage_bar():
-    p = pd.read_csv(OUT / "coverage_planning_area.csv")
-    p = p[p.residents >= 20000].sort_values("resident_coverage").head(15).iloc[::-1]
+    p = pd.read_csv(OUT / "coverage_walk_planning_area.csv")
+    p = p[p.residents >= 20000].sort_values("coverage_walk").head(15).iloc[::-1]
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=p.resident_coverage * 100, y=p.PLN_AREA_N.str.title(), orientation="h", name="housing land",
-                         marker_color=BLUE, hovertemplate="%{y}: %{x:.1f}%<extra>residents on housing land</extra>"))
-    fig.add_trace(go.Bar(x=p.resident_coverage_even * 100, y=p.PLN_AREA_N.str.title(), orientation="h",
-                         name="even spread over subzone", marker_color=GREY,
-                         hovertemplate="%{y}: %{x:.1f}%<extra>even spread</extra>"))
-    fig.update_xaxes(title="% of residents within 400 m of a bus stop", range=[60, 100], gridcolor="#e4e7eb")
-    layout(fig, 500, barmode="group")
-    fig.update_layout(legend=dict(orientation="h", y=-0.12, x=0), margin=dict(l=10, r=10, t=10, b=40))
+    for col, name, color in (("coverage_line", "straight line 400 m", GREY),
+                             ("coverage_line13", "straight line 308 m (detour factor 1.3)", "#7fa7cf"),
+                             ("coverage_walk", "OSM walking network 400 m", BLUE)):
+        fig.add_trace(go.Bar(x=p[col] * 100, y=p.PLN_AREA_N.str.title(), orientation="h", name=name, marker_color=color,
+                             hovertemplate="%{y}: %{x:.1f}%<extra>" + name + "</extra>"))
+    fig.update_xaxes(title="% of residents within reach of a bus stop", range=[30, 100], gridcolor="#e4e7eb")
+    layout(fig, 620, barmode="group")
+    fig.update_layout(legend=dict(orientation="h", y=-0.1, x=0), margin=dict(l=10, r=10, t=10, b=40))
     return fig
 
 
@@ -177,12 +225,12 @@ def quality_table():
 
 def kpis():
     c = pd.read_csv(OUT / "corridor_links.csv")
-    pa = pd.read_csv(OUT / "coverage_planning_area.csv")
+    cm = pd.read_csv(OUT / "coverage_measures.csv").set_index("measure").share
     p = pd.read_csv(OUT / "network_hourly_profile.csv")
     aug = p[(p.YEAR_MONTH == "2026-08") & (p.DAY_TYPE == "WEEKDAY")].tap_in_per_day.sum()
-    cov = pa.residents_covered.sum() / pa.residents.sum()
+    lo, hi = cm.min(), cm.max()
     items = [(f"{len(c):,}", "directed stop-to-stop links"), (f"{(c.services >= 10).sum():,}", "links shared by 10+ services"),
-             (f"{aug / 1e6:.2f} M", "bus boardings per weekday, Aug 2026"), (f"{cov:.1%}", "residents within 400 m of a stop")]
+             (f"{aug / 1e6:.2f} M", "bus boardings per weekday, Aug 2026"), (f"{lo:.0%} to {hi:.0%}", "residents within 400 m of a stop (walking network to straight line)")]
     return "".join(f"<div class=kpi><b>{v}</b><span>{t}</span></div>" for v, t in items)
 
 
@@ -200,7 +248,7 @@ h1{{font-size:26px;margin:0 0 4px}} h2{{font-size:19px;margin:36px 0 6px}}
 .kpi b{{display:block;font-size:24px;color:#1f5fa8}} .kpi span{{color:#52606d}}
 table{{border-collapse:collapse;width:100%;font-size:13px}} th,td{{padding:5px 8px;border-bottom:1px solid #e4e7eb;text-align:left}}
 td.n{{text-align:right;font-variant-numeric:tabular-nums}} .wrap{{overflow-x:auto}}
-.note{{color:#52606d}} code{{background:#eef2f7;padding:1px 4px;border-radius:3px}}
+.note{{color:#52606d}} .dot{{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}} code{{background:#eef2f7;padding:1px 4px;border-radius:3px}}
 footer{{margin-top:40px;color:#7b8794;font-size:12px}}
 </style></head><body><main>
 <h1>Singapore Bus Network Monitor</h1>
@@ -220,29 +268,39 @@ Built {built}. Code and method: <a href="https://github.com/LUOaini1213/sg-bus-n
 <div class=card>{profile}</div>
 
 <h2>3. Stops that changed</h2>
-<p class=note>Weekday boardings per day, August 2026 against a baseline month. A stop is flagged when its change is at
-least 3.5 robust standard deviations from the network-wide shift and at least 25% relative to it, among stops with 300+
-daily boardings.</p>
+<p class=note>Weekday boardings per day in August 2026 against the median of February, June and July. A stop is flagged
+when its change is at least 3.5 robust standard deviations from the network-wide shift and at least 25% relative to it,
+among stops with 300+ daily boardings. Each flag is then categorised from the monthly series, the services at the stop
+(DataMall routes, April vs September) and outside sources; only causes named by an official notice count as verified.
+Details: <a href="https://github.com/LUOaini1213/sg-bus-network-monitor/blob/main/docs/ANOMALIES.md">ANOMALIES.md</a>.</p>
 <div class=card>{surv_map}</div>
-<div class="card wrap"><b>August vs July 2026</b>{surv_tab_jul}</div>
-<div class="card wrap"><b>August vs February 2026</b>{surv_tab_feb}</div>
+<div class="card wrap">{anomaly_table}</div>
 
-<h2>4. Who lives within 400 m of a stop</h2>
-<p class=note>SingStat GHS 2025 residents placed on Master Plan 2019 housing parcels (weighted by plot ratio), then
-intersected with 400 m straight-line catchments around every served stop.</p>
+<h2>4. Where trips go</h2>
+<p class=note>Origin-destination pairs from the tap-in and tap-out stops of weekday bus trips (August 2026, per
+weekday). {od_note}</p>
+<div class=card>{od_pairs}</div>
+<div class=card>{od_lengths}</div>
+
+<h2>5. Who lives within 400 m of a stop</h2>
+<p class=note>SingStat GHS 2025 residents placed on Master Plan 2019 housing parcels (weighted by plot ratio). Reach is
+measured three ways: straight line (upper bound), straight line with a 1.3 detour factor, and along the OpenStreetMap
+walking network (lower bound: OSM misses many void-deck and linkway shortcuts in HDB estates). The map shows the
+straight-line measure. The low areas are the same under all three.</p>
 <div class=card>{cov_map}</div>
 <div class=card>{cov_bar}</div>
 
-<h2>5. Bus priority screening</h2>
+<h2>6. Bus priority screening</h2>
 <p class=note>Links shared by many buses where general traffic in the weekday AM peak is much slower than at night.
 Screening numbers from LTA speed bands, used for ranking, not measured bus travel times.</p>
 <div class=card>{priority}</div>
 
-<h2>6. Data quality</h2>
+<h2>7. Data quality</h2>
 <div class="card wrap">{quality}</div>
 
-<footer>Data: LTA DataMall (Bus Routes, Bus Services, Bus Stops, Passenger Volume by Bus Stops, Traffic Speed Bands),
-URA Master Plan 2019 (data.gov.sg), SingStat GHS 2025 table C020123, OpenStreetMap contributors (stop position cross-check).
+<footer>Data: LTA DataMall (Bus Routes, Bus Services, Bus Stops, Passenger Volume by Bus Stops, Traffic Speed Bands,
+Passenger Volume by Origin Destination Bus Stops), URA Master Plan 2019 (data.gov.sg), SingStat GHS 2025 table C020123,
+OpenStreetMap contributors (stop positions; walking network via the BBBike extract), official notices listed in data/reference.
 Contains information from LTA DataMall, URA and SingStat used under their open data terms.</footer>
 </main></body></html>"""
 
@@ -250,8 +308,8 @@ if __name__ == "__main__":
     DOCS.mkdir(exist_ok=True)
     page = PAGE.format(
         built=dt.date.today().isoformat(), kpis=kpis(), corridor_map=div(corridor_map()), road_bar=div(road_bar()),
-        profile=div(profile()), surv_map=div(surveillance_map()), surv_tab_jul=surveillance_table("2026-07"),
-        surv_tab_feb=surveillance_table("2026-02"), cov_map=div(coverage_map()), cov_bar=div(coverage_bar()),
+        profile=div(profile()), surv_map=div(surveillance_map()), anomaly_table=anomaly_table(),
+        od_pairs=div(od_pairs()), od_lengths=div(od_lengths()), od_note=od_note(), cov_map=div(coverage_map()), cov_bar=div(coverage_bar()),
         priority=priority_section(), quality=quality_table())
     (DOCS / "index.html").write_text(page, encoding="utf-8")
     print(f"docs/index.html {len(page) / 1e6:.1f} MB")

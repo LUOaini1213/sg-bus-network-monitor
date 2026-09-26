@@ -19,6 +19,14 @@ MUTANTS = [
     ("priority.py", "d.MinimumSpeed + 5, (d.MinimumSpeed + d.MaximumSpeed + 1) / 2",
      "(d.MinimumSpeed + d.MaximumSpeed + 1) / 2, (d.MinimumSpeed + d.MaximumSpeed + 1) / 2"),
     ("priority.py", "(weekday_only and t.weekday() >= 5)", "(weekday_only and t.weekday() > 5)"),
+    ("demand.py", "w[list(base)].median(axis=1, skipna=False)", "w[list(base)].max(axis=1, skipna=False)"),
+    ("anomalies.py", 'if r.flag == "drop" and len(removed) > len(added):', 'if r.flag == "drop" and removed:'),
+    ("anomalies.py", "if jun < 0.8 * feb and abs(aug / feb - 1) <= 0.2:", "if jun < 0.8 * feb:"),
+    ("anomalies.py", "if min(jul, aug) >= 1.4 * max(feb, jun):", "if aug >= 1.4 * max(feb, jun):"),
+    ("anomalies.py", "if r.near_campus and jun < 0.8 * aug and jul < 0.8 * aug:", "if r.near_campus:"),
+    ("anomalies.py", "before = {RENUMBERED.get(s, s) for s in before}", "before = set(before)"),
+    ("walk_network.py", "return tags.get(\"foot\") != \"no\"", "return True"),
+    ("walk_network.py", "if tags.get(\"area\") == \"yes\" or ", "if "),
 ]
 
 escaped = 0

@@ -3,101 +3,147 @@
 An open-data pipeline and dashboard for Singapore's public bus network. It covers:
 
 - where services share the road;
-- when and where people board;
-- which stops changed from one month to the next;
-- how many residents live within 400 m of a stop;
+- when people board and where their trips go;
+- which stops changed from one month to the next, and why;
+- how many residents can reach a stop within 400 m;
 - which shared corridors are slow enough to screen for bus priority.
 
 **Dashboard:** https://luoaini1213.github.io/sg-bus-network-monitor/
 
-Data: LTA DataMall (September 2026 network, passenger volume for February, June, July and August 2026), URA Master Plan 2019, SingStat General Household Survey 2025 and OpenStreetMap. Everything is rebuilt from raw files by one command, and every table has recorded quality checks.
+Data:
+
+- LTA DataMall: the September 2026 network; stop and origin-destination passenger volumes for February, June, July and August 2026; traffic speed bands.
+- URA Master Plan 2019.
+- SingStat General Household Survey 2025.
+- OpenStreetMap.
+- Official notices and calendars, used to verify causes.
+
+Everything is rebuilt from raw files by one command, and every table has recorded quality checks.
 
 ## Findings
 
-**Shared corridors.**
+### Shared corridors
+
 - 7,845 directed stop-to-stop links make up the 799 service-directions that have routes.
-- 396 links are shared by 10 or more services.
-- 230 links are scheduled for 60 or more buses an hour in the weekday AM peak.
+- 396 links are shared by 10 or more services, and 230 are scheduled for 60 or more buses an hour in the weekday AM peak.
 - The busiest link is Orchard Rd from Dhoby Ghaut Stn to Bencoolen Stn Exit B: 28 services and about 162 scheduled buses an hour.
 - By road, the most kilometres of links carrying 10+ services are on Marine Parade Rd (6.0 km), Yio Chu Kang Rd (4.8 km) and Telok Blangah Rd (4.4 km).
 
-**Monthly totals mislead unless divided by day counts.**
+### Monthly totals mislead unless divided by day counts
+
 - Raw DataMall totals show weekday boardings falling 11.6% from July to August 2026.
-- Per weekday they rose 1.6% (4.21 M to 4.28 M). July had 23 weekdays and August had 20, after National Day's Monday holiday.
-- June, the school holiday month, is 10% below July per weekday.
+- Per weekday, boardings actually rose 1.6%, from 4.21 M to 4.28 M. July had 23 weekdays; August had 20, after the National Day Monday holiday.
 - The pipeline uses the MOM 2026 holiday list for every comparison.
 
-**Stops that changed.** Surveillance compares each stop's weekday boardings with the network-wide shift. A stop is flagged when it moves at least 3.5 robust standard deviations and at least 25% against the network.
-- August vs July: 65 stops surged and 9 dropped.
-  - 24 of the 65 surges are on the roads through NTU (Nanyang Dr, Ave and Cres) and NUS (Clementi Rd, Kent Ridge Cres), up to +152% at Academic Bldg Sth and +179% on Clementi Rd. This is consistent with term starting in August.
-  - The Float @ Marina Bay fell 96%.
-- August vs February: the largest surges are in Sengkang East (Blk 305D up 570%, Renjong Stn Exit B up 430%).
-- These are leads to check against service changes, openings and events. They are not explanations.
+### Where trips go (origin-destination)
 
-**Walking coverage.**
-- 98.5% of residents live within 400 m (straight line) of a bus stop.
-- This comes from placing each subzone's GHS 2025 population on its Master Plan housing parcels, weighted by plot ratio.
-- Spreading people evenly over each subzone gives 97.2% instead, and shows false gaps. Yishun appears at 93.7% because Lower Seletar Reservoir sits inside one of its subzones; on housing land it is 99.0%.
-- The real gaps are the landed estates of Bukit Timah (76%) and Tanglin (82%), especially Hillcrest, Swiss Club and Leedon Park.
-- None of Sentosa's housing parcels has a DataMall stop within 400 m.
+- About 4.28 M bus trips are made per weekday.
+- 54% start and end in the same planning area, so buses mostly carry local and feeder trips.
+- Trip lengths are short:
+  - the median straight-line distance between tap-in and tap-out is 1.5 km;
+  - 90% of trips are under 5.8 km.
+- The busiest stop-to-stop flows cross the Causeway: Woodlands Checkpoint to Johor Bahru Checkpoint, about 22,400 trips a weekday.
+- The busiest pairs of planning areas are Tampines and Bedok, about 28,700 trips each way.
+- As a consistency check between the two DataMall products, OD trip totals match the stop tap-in totals to within 0.014% in both months.
 
-**Bus priority screening.** Links shared by many buses are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Speed-band snapshots are being collected every 15 minutes through weekday peaks. This section fills in once enough weekday AM peak and night snapshots exist.
+### Stops that changed, and why
+
+Each stop's August weekday boardings are compared with the **median of February, June and July**. The first version compared August with July alone, which made the polytechnics look like big drops: their July was a full teaching month and their August is exams.
+
+Against the median baseline, 71 stops are flagged: 67 surges and 4 drops. Each flag is checked against three things: the monthly series, the services at the stop (DataMall routes, April against September) and official notices. See [`docs/ANOMALIES.md`](docs/ANOMALIES.md).
+
+Verified causes:
+
+- **The Float @ Marina Bay** fell 96% because LTA closed the stop from 4 August to 12 October 2026 while the Formula 1 race was being prepared.
+- **The Jurong West St 75 reopening** on 19 July accounts for the new stops Gek Poh Shop Ctr and Blk 749, and for the drops at Blk 861 (−64%) and Blk 745 (−53%). The services 181/243/258/502/651 left those two stops.
+
+Explained by calendars:
+
+- 39 surges match the university and ITE terms. NUS and NTU started teaching on 10 August, SMU on 17 August and ITE on 13 July.
+- 7 more follow the MOE school-term shape, with the June holidays sitting inside the baseline.
+
+Still open: 4 sustained steps (e.g. Science Park II) and 14 stops have no verified cause. They stay as leads.
+
+### Who can reach a stop within 400 m
+
+Residents (GHS 2025) are placed on Master Plan housing parcels, weighted by plot ratio. Reach is then measured three ways:
+
+| Measure | Residents covered |
+|---|---|
+| Straight line, 400 m (upper bound) | 98.5% |
+| Straight line, 308 m (400 m with a 1.3 detour factor) | 96.7% |
+| Along the OpenStreetMap walking network, 400 m (lower bound) | 79.7% |
+
+- The walking-network figure is a lower bound. OSM misses many void-deck and covered-linkway shortcuts in HDB estates: the median walking-to-straight-line ratio comes out at 1.77, above typical urban values.
+- The ranking is stable across all three measures. The lowest areas are the landed estates of **Tanglin** (45–82%) and **Bukit Timah** (50–76%), then Bishan and Tengah.
+- Spreading residents evenly over each subzone instead of onto housing land creates false gaps. Yishun would appear at 93.7% because Lower Seletar Reservoir sits inside one of its subzones.
+
+### Bus priority screening
+
+Links shared by many buses are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Speed-band snapshots are collected every 15 minutes, so this section fills in after the first weekday AM peak (28 September 2026).
 
 ## Method
 
 | Step | Script | What it does |
 |---|---|---|
-| Fetch | `src/fetch_public.py`, `src/datamall.py` | OSM stops (Overpass), URA MP2019 planning areas, subzones and land use, SingStat table C020123; DataMall routes, services, stops, passenger volume and speed bands (key read from `LTA_KEY`, never stored) |
-| Build | `src/build_db.py` | Loads everything into DuckDB, derives stop-to-stop links and runs 13 data-quality checks (`outputs/data_quality.csv`) |
-| Corridors | `src/corridors.py` | Services and scheduled buses per hour on each directed link, from published headway bands |
-| Demand | `src/demand.py` | Hourly profiles per stop and network, per-day normalisation, robust month-over-month surveillance |
-| Coverage | `src/coverage.py` | 400 m catchments, population placed on housing parcels (dasymetric), results by subzone and planning area |
-| Priority | `src/priority.py` | Matches 143,787 speed-band road segments to bus links, then computes peak and night speeds and bus-hours lost |
+| Fetch | `src/fetch_public.py`, `src/datamall.py` | OSM stops, URA MP2019 boundaries and land use, SingStat C020123; DataMall routes, services, stops, passenger volume (stop and OD) and speed bands. The key is read from `LTA_KEY` and never stored. |
+| Walking network | `src/walk_network.py` | Streams the BBBike OSM extract and keeps walkable ways (the osmnx `walk` filter): 825,460 segments |
+| Build | `src/build_db.py` | Loads everything into DuckDB, derives stop-to-stop links and runs 13 data-quality checks |
+| Corridors | `src/corridors.py` | Services and scheduled buses per hour on each directed link |
+| Demand | `src/demand.py` | Per-day normalisation, hourly profiles, robust surveillance against a single month or a multi-month median |
+| OD | `src/od.py` | Planning-area matrix, top pairs, trip lengths, flows from flagged stops, and the OD vs tap-in check |
+| Anomalies | `src/anomalies.py` | Evidence table per flagged stop: monthly series, service changes (renumbering aware), OD changes, category, and verified events from `data/reference/network_events_2026.csv` |
+| Coverage | `src/coverage.py`, `src/coverage_walk.py` | Dasymetric population; straight-line and walking-network reach |
+| Priority | `src/priority.py` | Matches 143,787 speed-band segments to bus links, then computes peak and night speeds and bus-hours lost |
 | Dashboard | `src/dashboard.py` | Static Plotly page in `docs/` |
 
-The table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md).
+Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md).
 
 ### Validation
 
-- **Stop positions:** LTA and OpenStreetMap agree to a median 6.5 m. 94.8% of the 5,194 stops found in both are within 50 m.
-- **Speed-band matching:** a road segment is matched to a bus link by distance (25 m) and direction (within 40°).
-  - Parallel roads were the main error: expressways beside their service roads, viaducts above arterials.
-  - A road-name rule keeps only segments named like either stop's road. It raised name agreement from 76.8% to 98.0% of matched length.
+- **Stop positions:** LTA and OpenStreetMap agree to a median 6.5 m. 94.8% of the stops found in both are within 50 m of each other.
+- **Speed-band matching:** a road-name rule removes parallel-road errors, such as expressways beside their service roads. It raised name agreement from 76.8% to 98.0% of matched length.
+- **OD against stop volumes:** the totals agree to within 0.014% in July and in August.
+- **Walking network:**
+  - 15% of OSM walking nodes sit in 4,015 small fragments that are not connected to the street network.
+  - Points are therefore snapped only to components with 1,000 or more nodes. Without this, coverage came out at 75.3% instead of 79.7%.
 - **Network integrity:**
-  - Every route stop exists in the stop master.
-  - Every route's service exists in the service list.
+  - Every route stop exists in the stop master, and every route's service exists in the service list.
   - 236 of 26,842 route rows skip a sequence number.
-  - 209 link lengths fall outside 0–5 km. 204 of them are non-stop sections of express and City Direct services (e.g. 646–649), and the others are stops that share a location or have distance errors.
-  - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, served by cross-border service 170.
-- **Tests:** 24 unit tests cover headway parsing, day counts, bearings, road-name matching, the surveillance rule and the snapshot time windows.
-  - `tests/mutate.py` makes 13 deliberate bugs in the code, and every one must fail the tests. It found three gaps in the first test set, which have since been closed.
-  - CI runs both.
+  - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
+- **Tests:**
+  - 50 unit tests, and `tests/mutate.py`, which makes 21 deliberate bugs that must each fail at least one test. CI runs both.
+  - The check has found test gaps twice, and both were closed:
+    - the first test set let 3 of 13 bugs through;
+    - the anomaly rules let 3 of 18 through.
 
 ### Limits of the numbers
 
-- Catchments are 400 m straight-line buffers. Walking distance along real paths is longer, so the true coverage is lower than reported.
-- Headway bands are scheduled service, not observed buses.
+- Straight-line catchments overstate access and the OSM walking network understates it. The two bracket the true figure.
+- Headway bands describe scheduled service, not observed buses.
 - Speed bands describe general traffic. Buses also stop at bus stops.
-- A one-month surveillance flag is a lead to investigate. It becomes a finding when the next month confirms it.
+- A surveillance flag with no verified cause is a lead. It becomes a finding when a source or the next month confirms it.
 
 ## Run it
 
 ```bash
 pip install -r requirements.txt
-python src/fetch_public.py                    # public data, no key needed
-LTA_KEY=... python src/datamall.py static pv  # DataMall (free account key)
-LTA_KEY=... bash src/sample_speed.sh 202609301000   # optional: speed-band snapshots every 15 min
-python run_all.py                             # database, analyses, dashboard
+python src/fetch_public.py                          # public data, no key needed
+curl -o data/raw/Singapore.osm.gz https://download.bbbike.org/osm/bbbike/Singapore/Singapore.osm.gz
+LTA_KEY=... python src/datamall.py static pv        # DataMall (free account key)
+LTA_KEY=... python src/datamall.py od 202608 202607  # origin-destination volumes
+LTA_KEY=... bash src/sample_speed.sh 202609301000   # speed-band snapshots every 15 min
+python run_all.py                                   # walking network (first run), database, analyses, dashboard
 python -m pytest -q tests && python tests/mutate.py
 ```
 
 ## Data sources
 
-- LTA DataMall: Bus Routes, Bus Services, Bus Stops, Passenger Volume by Bus Stops, Traffic Speed Bands v4.
+- LTA DataMall: Bus Routes (pulled 2026-04-22 and 2026-09-26), Bus Services, Bus Stops, Passenger Volume by Bus Stops, Passenger Volume by Origin Destination Bus Stops, Traffic Speed Bands v4.
 - URA Master Plan 2019 planning area boundaries, subzone boundaries and land use (data.gov.sg).
-- SingStat General Household Survey 2025, table C020123: resident population by planning area and subzone.
-- Ministry of Manpower public holidays 2026.
-- OpenStreetMap contributors (bus stop positions, used as a cross-check).
+- SingStat General Household Survey 2025, table C020123.
+- OpenStreetMap contributors: stop positions, and the walking network via the BBBike extract of 20 September 2026.
+- Official notices and calendars (LTA, operators, NUS, NTU, SMU, polytechnics, ITE, MOE, MOM), listed with each event in `data/reference/network_events_2026.csv`.
 - Basemap tiles: Esri Light Gray Canvas.
 
-Raw data is not committed; `data/raw/` is rebuilt by the fetch scripts.
+Raw data is not committed. `data/raw/` is rebuilt by the fetch commands above.

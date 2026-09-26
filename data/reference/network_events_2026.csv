@@ -1,0 +1,13 @@
+event_id,date_from,date_to,kind,stops,services,description,source
+float_f1,2026-08-04,2026-10-12,stop closure,02051,36 56 70M 77 97 97e 106 111 133 195 647 857 960 960e 961M,"The Float @ Marina Bay stop temporarily closed; services skip it during preparation for the Formula 1 Singapore Grand Prix 2026",LTA announcement poster FloatMarinaBayBS_040826.pdf (lta.gov.sg/content/ltagov/en/map/announcement.html)
+jw75_reopen,2026-07-19,,route change,27381 27389 27341 27349 27431 27439,181 181M 243G 243W 258 258M 502 502A 651,"Jurong West St 75 reopened after a partial closure from 2025-12-07: services return to St 75 and call again at 27381 Blk 749 and 27389 Gek Poh Shop Ctr; the detour stops 27341/27349 (JW St 72) and 27431/27439 (JW Ave 5) are no longer served by them",LTA announcement poster Jurong_West_St75_Reopening.pdf; towertransit.sg/announcements/jurong-west-st75-partial-closure
+cds_renumber,2026-06-15,,renumbering,,513>646 868E>647 951E>648 982E>649 850E>650,"City Direct services renumbered; routes carried over under new numbers",LTA announcement posters CDS_646.pdf to CDS_650.pdf
+svc_684,2026-06-15,,new service,,684,"New City Direct service 684 Keat Hong Link to CBD",LTA announcement poster CDS_684.pdf
+svc_181_ext,2026-06-14,,route change,,181,"Service 181 extended from Boon Lay to Tengah Int",LTA announcement poster Svc_181_extension.pdf
+svc_965,2026-05-24,,route change,67331 67339 67279,965,"Service 965 now runs Woodlands Temp Int to Buangkok Int with new stops on Sengkang East Way/Rd/Ave; Sengkang Int skipped",LTA announcement poster Svc_965_Amendment.pdf
+nus_term,2026-08-10,,academic term,,,"NUS Semester 1 AY2026/27 teaching week 1 from 10 Aug (orientation 3-8 Aug); Feb 2026 was in Semester 2",nus.edu.sg/registrar academic calendars AY2025-2026 and AY2026-2027
+ntu_term,2026-08-10,,academic term,,,"NTU Semester 1 AY2026/27 teaching week 1 from 10 Aug",NTU academic calendar AY2026-27 (ntu.edu.sg)
+smu_term,2026-08-17,,academic term,,,"SMU undergraduate Term 1 AY2026/27 week 1 from 17 Aug",smu.edu.sg UG calendar 2026-2027
+poly_term,2026-06-29,2026-09-07,academic term,,,"All five polytechnics resumed teaching 29 Jun; August is late teaching and exams; vacation from 31 Aug (NP) to 7 Sep (NYP)",academic calendar pages of NP SP TP RP NYP
+ite_term,2026-07-13,,academic term,,,"ITE term starts 13 Jul 2026 for all intakes (vacation 13 Jun - 12 Jul)",ite.edu.sg/current-full-time-students/academic-calendar
+moe_june,2026-05-30,2026-06-28,school holiday,,,"MOE June holidays 30 May - 28 Jun 2026; Term III 29 Jun - 4 Sep",moe.gov.sg press release 2025-07-30 school terms and holidays for 2026

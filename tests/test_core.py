@@ -116,3 +116,64 @@ def test_robust_z_is_centred_on_the_network_shift():
     latest = base * 1.4 * rng.normal(1.0, 0.03, 100)  # every stop +40 %
     s = surveillance(_volume(base, latest), "2026-08", "2026-07")
     assert s.robust_z.abs().median() < 1.5 and (s.flag == "").all()
+
+
+def test_median_baseline_ignores_one_unusual_month():
+    # Feb, Jun, Aug equal; July doubled (as at the polytechnics). Against July the stop "drops" 50 %;
+    # against the median of Feb/Jun/Jul it has not changed.
+    rows = []
+    for stop in range(60):
+        base = 1000.0 + stop
+        for ym, k in (("2026-02", 1.0), ("2026-06", 1.0), ("2026-07", 2.0 if stop == 0 else 1.0), ("2026-08", 1.0)):
+            rows.append({"stop": f"{stop:05d}", "YEAR_MONTH": ym, "DAY_TYPE": "WEEKDAY", "tap_in_per_day": base * k * (1 + stop % 7 / 1000)})
+    v = pd.DataFrame(rows)
+    single = surveillance(v, "2026-08", "2026-07").set_index("stop")
+    median = surveillance(v, "2026-08", ["2026-02", "2026-06", "2026-07"]).set_index("stop")
+    assert single.loc["00000", "flag"] == "drop"
+    assert median.loc["00000", "flag"] == ""
+
+
+def _row(**kw):
+    base = dict(flag="surge", Description="Blk 1", RoadName="Some Rd", services_added="", services_removed="",
+                near_campus=False, **{"wd_2026-02": 1000.0, "wd_2026-06": 1000.0, "wd_2026-07": 1000.0, "wd_2026-08": 1500.0})
+    base.update(kw)
+    return pd.Series(base)
+
+
+@pytest.mark.parametrize("kw, expected", [
+    (dict(flag="drop", services_removed="243W 258 502", services_added="181A"), "services withdrawn or rerouted away"),
+    (dict(services_added="649", services_removed="982E"), "services added or rerouted here"),
+    (dict(flag="drop", services_added="965"), "service change (direction unclear)"),
+    (dict(Description="Lee Wee Nam Lib", RoadName="Nanyang Dr"), "academic term"),
+    (dict(near_campus=True, **{"wd_2026-06": 500.0, "wd_2026-07": 600.0}), "academic term (within 600 m of a campus)"),
+    (dict(**{"wd_2026-06": 700.0, "wd_2026-08": 1100.0}), "school-term seasonality (June holidays in the baseline)"),
+    (dict(**{"wd_2026-07": 1500.0}), "sustained step up since July"),
+    (dict(), "unexplained"),
+    # boundaries: more services added than removed is not a withdrawal
+    (dict(flag="drop", services_removed="965T", services_added="965 965A"), "service change (direction unclear)"),
+    # low June but August far above February is not the school-term shape
+    (dict(**{"wd_2026-06": 700.0, "wd_2026-08": 1600.0}), "unexplained"),
+    # near a campus but without the term shape (June/July close to August)
+    (dict(near_campus=True, **{"wd_2026-06": 1300.0, "wd_2026-07": 1300.0}), "unexplained"),
+])
+def test_classify(kw, expected):
+    from anomalies import classify
+    assert classify(_row(**kw)) == expected
+
+
+def test_renumbered_services_are_not_changes():
+    from anomalies import service_diff
+    assert service_diff({"982E", "174"}, {"649", "174"}) == ([], [])
+    assert service_diff({"982E"}, {"649", "684"}) == (["684"], [])
+
+
+@pytest.mark.parametrize("tags, ok", [
+    ({"highway": "footway"}, True), ({"highway": "residential"}, True), ({"highway": "primary"}, True),
+    ({"highway": "steps"}, True), ({"highway": "motorway"}, False), ({"highway": "motorway_link"}, False),
+    ({"highway": "cycleway"}, False), ({"highway": "construction"}, False), ({"highway": "footway", "foot": "no"}, False),
+    ({"highway": "service", "service": "private"}, False), ({"highway": "pedestrian", "area": "yes"}, False),
+    ({"highway": "service", "access": "private"}, False), ({"building": "yes"}, False),
+])
+def test_walkable_filter(tags, ok):
+    from walk_network import walkable
+    assert walkable(tags) is ok

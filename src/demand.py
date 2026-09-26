@@ -69,7 +69,13 @@ def stop_profile(v, month):
 
 
 def surveillance(v, month, base, min_daily=300, z_cut=3.5, min_effect=0.25):
+    """base: one month ("2026-07") or a list of months, whose per-stop median is the baseline. A single baseline month
+    that is itself unusual (July for the polytechnics) produces false flags; the median of several months does not."""
     w = v[v.DAY_TYPE == "WEEKDAY"].groupby(["stop", "YEAR_MONTH"]).tap_in_per_day.sum().unstack()
+    if isinstance(base, (list, tuple)):
+        name = "baseline_median"
+        w[name] = w[list(base)].median(axis=1, skipna=False)
+        base = name
     s = w[[base, month]].dropna()
     s = s[(s[base] >= min_daily) | (s[month] >= min_daily)]
     lr = np.log(s[month] + 1) - np.log(s[base] + 1)
@@ -95,8 +101,9 @@ if __name__ == "__main__":
     print(sp.boarding_pattern.value_counts().to_string())
     print(sp.sort_values("weekday_tap_in_per_day", ascending=False).head(10)
           [["stop", "Description", "weekday_tap_in_per_day", "am_peak_share", "pm_peak_share", "boarding_pattern"]].round(2).to_string(index=False))
-    for base in ["2026-07", "2026-02"]:
+    for base in ["2026-07", "2026-02", ["2026-02", "2026-06", "2026-07"]]:
         s = surveillance(v, "2026-08", base).merge(stops, on="stop", how="left")
+        base = base if isinstance(base, str) else "baseline_median"
         s.to_csv(OUT / f"surveillance_2026-08_vs_{base}.csv", index=False)
         print(f"\n2026-08 vs {base}: {len(s):,} stops tested, network shift {s.network_shift.iloc[0]:+.1%}, "
               f"{(s.flag == 'surge').sum()} surges, {(s.flag == 'drop').sum()} drops")

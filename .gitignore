@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 outputs/priority_screen_smoke.csv
 .pytest_cache/
+data/processed/*.parquet
+data/processed/*.npy
