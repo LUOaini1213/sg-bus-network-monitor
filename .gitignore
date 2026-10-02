@@ -4,6 +4,7 @@ data/processed/*.duckdb
 __pycache__/
 *.pyc
 outputs/priority_screen_smoke.csv
+outputs/priority_screen_smoke_metadata.json
 .pytest_cache/
 data/processed/*.parquet
 data/processed/*.npy

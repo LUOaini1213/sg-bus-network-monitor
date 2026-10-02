@@ -2,7 +2,7 @@
   python src/fetch_public.py            # OSM stops, URA boundaries and land use, SingStat population (no key)
   LTA_KEY=... python src/datamall.py static pv   # DataMall routes, services, stops, passenger volume
   LTA_KEY=... python src/datamall.py od 202608 202607   # origin-destination volumes
-  LTA_KEY=... bash src/sample_speed.sh 202609301000   # speed-band snapshots every 15 minutes
+  LTA_KEY=... bash src/sample_speed.sh 202609301000   # speed-band snapshots about every 20 minutes
   curl -o data/raw/Singapore.osm.gz https://download.bbbike.org/osm/bbbike/Singapore/Singapore.osm.gz
 """
 import subprocess

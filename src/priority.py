@@ -12,6 +12,8 @@ corridors, not measured bus travel times.
 """
 import datetime as dt
 import gzip
+import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -26,6 +28,7 @@ RAW = ROOT / "data" / "raw" / "datamall"
 DB = ROOT / "data" / "processed" / "sgbus.duckdb"
 OUT = ROOT / "outputs"
 BUFFER_M, MAX_ANGLE, MAX_LINK_KM = 25, 40, 2.0
+MIN_VALID_COVERAGE = 0.5
 AM = (dt.time(7, 30), dt.time(9, 30))
 NIGHT = (dt.time(22, 0), dt.time(5, 0))
 
@@ -83,6 +86,7 @@ def match(con):
     has_same = m.groupby(["from_stop", "to_stop"]).same_road.transform("any")
     grade_sep = (m.RoadCategory == 1) | m.seg_road.str.contains("VIADUCT|TUNNEL|EXPRESSWAY|PARKWAY")
     m = m[np.where(has_same, m.same_road, ~grade_sep)]
+    m = m.merge(cl[["from_stop", "to_stop", "link_km"]], on=["from_stop", "to_stop"], validate="many_to_one")
     cover = m.groupby(["from_stop", "to_stop"]).seg_m.sum().rename("matched_m")
     cl = cl.join(cover, on=["from_stop", "to_stop"])
     cl["match_ratio"] = (cl.matched_m / (cl.link_km * 1000)).clip(upper=1)
@@ -106,14 +110,67 @@ def load_snapshots(window, weekday_only):
     return pd.concat(frames) if frames else pd.DataFrame(columns=["LinkID", "kmh", "snapshot"])
 
 
-def link_speed(m, snaps):
+def link_speed(m, snaps, min_snapshots=4):
+    """Median of valid snapshot speeds; links below the sample floor remain missing.
+
+    A snapshot needs valid speeds over at least half the real link length. Invalid speeds and lengths contribute
+    nothing. The returned count is still the number of input snapshot times, for the collection diagnostic; the
+    minimum is checked separately for each link after the coverage check.
+    """
+    if "link_km" not in m:
+        raise ValueError("matched segments must include the real link_km for observed coverage")
     if snaps.empty:
         return pd.Series(dtype=float, index=pd.MultiIndex.from_tuples([], names=["from_stop", "to_stop"])), 0
     x = m.merge(snaps, on="LinkID")
+    x = x[np.isfinite(x.kmh) & (x.kmh > 0) & np.isfinite(x.seg_m) & (x.seg_m > 0)
+          & np.isfinite(x.link_km) & (x.link_km > 0)].copy()
     x["wv"] = x.kmh * x.seg_m
-    g = x.groupby(["from_stop", "to_stop", "snapshot"])[["wv", "seg_m"]].sum()
-    per = g.wv / g.seg_m
-    return per.groupby(level=[0, 1]).median(), snaps.snapshot.nunique()
+    g = x.groupby(["from_stop", "to_stop", "snapshot"]).agg(
+        wv=("wv", "sum"), observed_m=("seg_m", "sum"), link_km=("link_km", "first"))
+    per = (g.wv / g.observed_m).where(g.observed_m >= MIN_VALID_COVERAGE * g.link_km * 1000)
+    by_link = per.groupby(level=[0, 1])
+    return by_link.median().where(by_link.count() >= min_snapshots), snaps.snapshot.nunique()
+
+
+def screen_priority(cl):
+    """Rank only links with sufficient matching coverage and finite, positive speeds in both periods."""
+    valid = ((cl.match_ratio >= 0.5) & np.isfinite(cl.v_peak) & (cl.v_peak > 0)
+             & np.isfinite(cl.v_ref) & (cl.v_ref > 0))
+    ok = cl[valid].copy()
+    ok["bus_h_lost_per_h"] = ok.AM_Peak_bph * ok.link_km * (1 / ok.v_peak - 1 / ok.v_ref).clip(lower=0)
+    return ok[np.isfinite(ok.bus_h_lost_per_h)].sort_values("bus_h_lost_per_h", ascending=False)
+
+
+def write_screen(m, cl, peak_snaps, ref_snaps, *, any_window=False, output_dir=None):
+    """Publish this run, including an empty result, with the actual input observation windows and CSV hash.
+
+    Snapshot timestamps are naive Singapore local time (SGT, UTC+08:00), as in the sampler filenames.
+    Smoke results have a separate stem and cannot replace the formal weekday AM-peak screening.
+    """
+    min_snapshots = 1 if any_window else 4
+    peak, n_peak = link_speed(m, peak_snaps, min_snapshots=min_snapshots)
+    ref, n_ref = link_speed(m, ref_snaps, min_snapshots=min_snapshots)
+    cl = cl.join(peak.rename("v_peak"), on=["from_stop", "to_stop"])
+    cl = cl.join(ref.rename("v_ref"), on=["from_stop", "to_stop"])
+    ranked = screen_priority(cl)
+
+    def window(snaps, count):
+        times = snaps.snapshot.dropna()
+        return {"min_snapshot": pd.Timestamp(times.min()).isoformat() if not times.empty else None,
+                "max_snapshot": pd.Timestamp(times.max()).isoformat() if not times.empty else None,
+                "n_snapshots": int(count)}
+
+    csv_bytes = ranked.to_csv(index=False, lineterminator="\n").encode("utf-8")
+    metadata = {"mode": "smoke" if any_window else "weekday_am_peak", "snapshot_timezone": "Asia/Singapore",
+                "peak": window(peak_snaps, n_peak), "night": window(ref_snaps, n_ref),
+                "min_snapshots": min_snapshots, "min_valid_coverage": MIN_VALID_COVERAGE,
+                "eligible_links": len(ranked), "csv_sha256": hashlib.sha256(csv_bytes).hexdigest()}
+    out = Path(output_dir) if output_dir is not None else OUT
+    out.mkdir(parents=True, exist_ok=True)
+    stem = "priority_screen_smoke" if any_window else "priority_screen"
+    (out / f"{stem}.csv").write_bytes(csv_bytes)
+    (out / f"{stem}_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    return ranked, metadata
 
 
 if __name__ == "__main__":
@@ -123,19 +180,11 @@ if __name__ == "__main__":
     print(f"{len(cl):,} bus links (<= {MAX_LINK_KM} km); {cl.matched_m.notna().sum():,} matched to speed-band segments; "
           f"median coverage {cl.match_ratio.median():.0%}")
     any_window = "--any" in sys.argv  # smoke test on whatever snapshots exist
-    peak, n_peak = link_speed(m, load_snapshots((dt.time(0, 0), dt.time(23, 59)) if any_window else AM, not any_window))
-    ref, n_ref = link_speed(m, load_snapshots(NIGHT, False))
-    cl = cl.join(peak.rename("v_peak"), on=["from_stop", "to_stop"]).join(ref.rename("v_ref"), on=["from_stop", "to_stop"])
-    print(f"peak snapshots: {n_peak}, night snapshots: {n_ref}")
-    if not any_window and (n_peak < 4 or n_ref < 4):
-        print("not enough weekday AM peak or night snapshots yet (need 4 of each); priority_screen.csv not written")
-        con.execute("create or replace table speedband_match as select * from m")
-        sys.exit(0)
-    ok = cl[(cl.match_ratio >= 0.5) & cl.v_peak.notna() & cl.v_ref.notna()].copy()
-    ok["bus_h_lost_per_h"] = ok.AM_Peak_bph * ok.link_km * (1 / ok.v_peak - 1 / ok.v_ref).clip(lower=0)
-    ok = ok.sort_values("bus_h_lost_per_h", ascending=False)
-    OUT.mkdir(exist_ok=True)
-    ok.to_csv(OUT / ("priority_screen_smoke.csv" if any_window else "priority_screen.csv"), index=False)
+    peak_snaps = load_snapshots((dt.time(0, 0), dt.time(23, 59)) if any_window else AM, not any_window)
+    ref_snaps = load_snapshots(NIGHT, False)
+    ok, metadata = write_screen(m, cl, peak_snaps, ref_snaps, any_window=any_window)
+    print(f"peak snapshots: {metadata['peak']['n_snapshots']}, night snapshots: {metadata['night']['n_snapshots']}; "
+          f"eligible links: {metadata['eligible_links']} (need {metadata['min_snapshots']} covered snapshots per period)")
     con.execute("create or replace table speedband_match as select * from m")
     print(ok.head(15)[["from_stop", "to_stop", "services", "AM_Peak_bph", "link_km", "v_peak", "v_ref",
                        "bus_h_lost_per_h"]].round(2).to_string(index=False))
