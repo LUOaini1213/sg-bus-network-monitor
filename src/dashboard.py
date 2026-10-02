@@ -1,5 +1,6 @@
 """Build the static dashboard (docs/index.html, served by GitHub Pages) from the CSV outputs."""
 import datetime as dt
+import hashlib
 import html
 import json
 from pathlib import Path
@@ -27,8 +28,9 @@ def layout(fig, h=520, **kw):
     return fig
 
 
-def div(fig):
-    return fig.to_html(full_html=False, include_plotlyjs=False, config={"displaylogo": False, "responsive": True})
+def div(fig, chart_id):
+    return fig.to_html(full_html=False, include_plotlyjs=False, div_id=chart_id,
+                       config={"displaylogo": False, "responsive": True})
 
 
 def lines_trace(df, name, color, width, hover):
@@ -128,9 +130,12 @@ def anomaly_table():
         f"<td class=n>{f(r['wd_2026-02'])}</td><td class=n>{f(r['wd_2026-06'])}</td><td class=n>{f(r['wd_2026-07'])}</td>"
         f"<td class=n>{f(r['wd_2026-08'])}</td><td class=n>{r['pct_change']:+.0%}</td>"
         f"<td><span class=dot style='background:{CAT_COLORS.get(r.category, GREY)}'></span>{html.escape(r.category)}</td>"
-        f"<td>{'' if pd.isna(r.verified_event) else html.escape(r.verified_event)}</td></tr>" for _, r in e.iterrows())
+        f"<td>{'' if pd.isna(r.verified_event) else html.escape(r.verified_event)}</td>"
+        f"<td>{'No OD evidence' if pd.isna(r.od_biggest_changes) else html.escape(r.od_biggest_changes)}</td></tr>"
+        for _, r in e.iterrows())
     return ("<table><thead><tr><th>Stop</th><th>Name</th><th>Feb</th><th>Jun</th><th>Jul</th><th>Aug</th>"
-            "<th>vs baseline</th><th>Category</th><th>Verified event</th></tr></thead><tbody>" + rows + "</tbody></table>")
+            "<th>vs baseline</th><th>Category</th><th>Verified event</th>"
+            "<th>Largest destination changes (trips per weekday, Jul → Aug)</th></tr></thead><tbody>" + rows + "</tbody></table>")
 
 
 def od_note():
@@ -202,16 +207,48 @@ def coverage_bar():
 
 def priority_section():
     f = OUT / "priority_screen.csv"
-    if not f.exists() or len(pd.read_csv(f)) == 0:
-        return ("<p class=note>Speed-band sampling runs every 15 minutes until the weekday AM peak and night "
-                "reference periods are covered. This section fills in when <code>outputs/priority_screen.csv</code> "
-                "exists.</p>")
-    p = pd.read_csv(f, dtype={"from_stop": str, "to_stop": str}).head(40)
+    if not f.exists():
+        return "<p class=note>No bus-priority screening result has been built for this dashboard.</p>"
+    p = pd.read_csv(f, dtype={"from_stop": str, "to_stop": str})
+    # Tie dates to the actual result file, rather than showing stale metadata from another run.
+    meta_file = OUT / "priority_screen_metadata.json"
+    meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.exists() else {}
+    if meta.get("csv_sha256") == hashlib.sha256(f.read_bytes()).hexdigest():
+        def period(name):
+            sample = meta[name]
+            if not sample["n_snapshots"]:
+                return "no snapshots"
+            first = html.escape(sample["min_snapshot"].replace("T", " ")[:16])
+            last = html.escape(sample["max_snapshot"].replace("T", " ")[:16])
+            return f"{sample['n_snapshots']} snapshots, {first} to {last}"
+        note = (f"<p class=note>Observed periods (Singapore time): weekday AM — {period('peak')}; "
+                f"night — {period('night')}. Each eligible link needs at least {meta['min_snapshots']} "
+                "valid snapshots in each period, each covering at least half its length.</p>")
+    else:
+        note = "<p class=note>The observation period is unavailable for this result file.</p>"
+    if p.empty:
+        return note + ("<p>No links meet the data requirements in this build. This does not mean there is no "
+                       "congestion; more valid observations may be needed.</p>")
+    positive = p[p.bus_h_lost_per_h > 0]
+    note += (f"<p>Eligible links: {len(p):,}. Positive estimated AM loss: {len(positive):,}. "
+             "The map shows up to 40 highest-ranked links; the table shows the first 10.</p>")
+    if positive.empty:
+        return note + "<p>No eligible links have a positive AM loss relative to the night reference.</p>"
+    p = positive.head(40)
     fig = go.Figure(lines_trace(p, "screened links", RED, 5,
                                 [f"{r.from_stop} → {r.to_stop}<br>{r.services} services, {r.AM_Peak_bph:.0f} buses/h"
                                  f"<br>AM peak {r.v_peak:.0f} km/h vs night {r.v_ref:.0f} km/h"
                                  f"<br>{r.bus_h_lost_per_h * 60:.1f} bus-min lost per hour" for r in p.itertuples()]))
-    return div(layout(fig, 520, mapbox=MAP))
+    rows = "".join(
+        f"<tr><td>{html.escape(r.from_stop)} → {html.escape(r.to_stop)}</td>"
+        f"<td class=n>{r.services:.0f}</td><td class=n>{r.AM_Peak_bph:.1f}</td>"
+        f"<td class=n>{r.v_peak:.1f}</td><td class=n>{r.v_ref:.1f}</td>"
+        f"<td class=n>{r.bus_h_lost_per_h * 60:.1f}</td></tr>" for r in p.head(10).itertuples())
+    table = ("<p class='table-hint note'>Scroll the table horizontally to read all columns.</p>"
+             "<div class=wrap><table class=priority-table><caption>Highest estimated bus-priority opportunities</caption><thead><tr>"
+             "<th>Stop link</th><th>Services</th><th>Scheduled buses/h</th><th>AM km/h</th><th>Night km/h</th>"
+             "<th>Estimated bus-min lost/h</th></tr></thead><tbody>" + rows + "</tbody></table></div>")
+    return note + div(layout(fig, 520, mapbox=MAP), "priority-map") + table
 
 
 def quality_table():
@@ -249,25 +286,31 @@ h1{{font-size:26px;margin:0 0 4px}} h2{{font-size:19px;margin:36px 0 6px}}
 table{{border-collapse:collapse;width:100%;font-size:13px}} th,td{{padding:5px 8px;border-bottom:1px solid #e4e7eb;text-align:left}}
 td.n{{text-align:right;font-variant-numeric:tabular-nums}} .wrap{{overflow-x:auto}}
 .note{{color:#52606d}} .dot{{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}} code{{background:#eef2f7;padding:1px 4px;border-radius:3px}}
+nav{{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0}} a{{color:#1f5fa8}} caption{{text-align:left;font-weight:600;padding:12px 0}}
+.priority-table{{min-width:610px}} .priority-table td:first-child{{white-space:nowrap}} .table-hint{{display:none}}
+@media(max-width:600px){{.table-hint{{display:block}}}}
 footer{{margin-top:40px;color:#7b8794;font-size:12px}}
 </style></head><body><main>
 <h1>Singapore Bus Network Monitor</h1>
 <p class=sub>Shared corridors, stop demand, walking coverage and data quality from LTA DataMall, URA and SingStat open data.
 Built {built}. Code and method: <a href="https://github.com/LUOaini1213/sg-bus-network-monitor">GitHub</a>.</p>
 <div class=kpis>{kpis}</div>
+<nav aria-label="Dashboard sections"><a href="#corridors">Corridors</a><a href="#demand">Demand</a>
+<a href="#anomalies">Changed stops</a><a href="#od">Trip destinations</a><a href="#coverage">Walking coverage</a>
+<a href="#priority">Bus priority</a><a href="#quality">Data quality</a></nav>
 
-<h2>1. Where services share the road</h2>
+<h2 id=corridors>1. Where services share the road</h2>
 <p class=note>Each line is a stop-to-stop link, coloured by scheduled buses per hour in the weekday AM peak
 (sum over all services using the link, from the published headway bands).</p>
 <div class=card>{corridor_map}</div>
 <div class=card>{road_bar}</div>
 
-<h2>2. When people board</h2>
+<h2 id=demand>2. When people board</h2>
 <p class=note>Monthly totals divided by the number of weekdays or weekend/holiday days in each month
 (MOM 2026 public holidays). June is the school holiday month.</p>
 <div class=card>{profile}</div>
 
-<h2>3. Stops that changed</h2>
+<h2 id=anomalies>3. Stops that changed</h2>
 <p class=note>Weekday boardings per day in August 2026 against the median of February, June and July. A stop is flagged
 when its change is at least 3.5 robust standard deviations from the network-wide shift and at least 25% relative to it,
 among stops with 300+ daily boardings. Each flag is then categorised from the monthly series, the services at the stop
@@ -276,13 +319,13 @@ Details: <a href="https://github.com/LUOaini1213/sg-bus-network-monitor/blob/mai
 <div class=card>{surv_map}</div>
 <div class="card wrap">{anomaly_table}</div>
 
-<h2>4. Where trips go</h2>
+<h2 id=od>4. Where trips go</h2>
 <p class=note>Origin-destination pairs from the tap-in and tap-out stops of weekday bus trips (August 2026, per
 weekday). {od_note}</p>
 <div class=card>{od_pairs}</div>
 <div class=card>{od_lengths}</div>
 
-<h2>5. Who lives within 400 m of a stop</h2>
+<h2 id=coverage>5. Who lives within 400 m of a stop</h2>
 <p class=note>SingStat GHS 2025 residents placed on Master Plan 2019 housing parcels (weighted by plot ratio). Reach is
 measured three ways: straight line (upper bound), straight line with a 1.3 detour factor, and along the OpenStreetMap
 walking network (lower bound: OSM misses many void-deck and linkway shortcuts in HDB estates). The map shows the
@@ -290,12 +333,12 @@ straight-line measure. The low areas are the same under all three.</p>
 <div class=card>{cov_map}</div>
 <div class=card>{cov_bar}</div>
 
-<h2>6. Bus priority screening</h2>
-<p class=note>Links shared by many buses where general traffic in the weekday AM peak is much slower than at night.
+<h2 id=priority>6. Bus priority screening</h2>
+<p class=note>Bus links where general traffic in the weekday AM peak is slower than at night.
 Screening numbers from LTA speed bands, used for ranking, not measured bus travel times.</p>
 <div class=card>{priority}</div>
 
-<h2>7. Data quality</h2>
+<h2 id=quality>7. Data quality</h2>
 <div class="card wrap">{quality}</div>
 
 <footer>Data: LTA DataMall (Bus Routes, Bus Services, Bus Stops, Passenger Volume by Bus Stops, Traffic Speed Bands,
@@ -307,9 +350,10 @@ Contains information from LTA DataMall, URA and SingStat used under their open d
 if __name__ == "__main__":
     DOCS.mkdir(exist_ok=True)
     page = PAGE.format(
-        built=dt.date.today().isoformat(), kpis=kpis(), corridor_map=div(corridor_map()), road_bar=div(road_bar()),
-        profile=div(profile()), surv_map=div(surveillance_map()), anomaly_table=anomaly_table(),
-        od_pairs=div(od_pairs()), od_lengths=div(od_lengths()), od_note=od_note(), cov_map=div(coverage_map()), cov_bar=div(coverage_bar()),
+        built=dt.date.today().isoformat(), kpis=kpis(), corridor_map=div(corridor_map(), "corridor-map"), road_bar=div(road_bar(), "road-bar"),
+        profile=div(profile(), "demand-profile"), surv_map=div(surveillance_map(), "surveillance-map"), anomaly_table=anomaly_table(),
+        od_pairs=div(od_pairs(), "od-pairs"), od_lengths=div(od_lengths(), "od-lengths"), od_note=od_note(),
+        cov_map=div(coverage_map(), "coverage-map"), cov_bar=div(coverage_bar(), "coverage-bar"),
         priority=priority_section(), quality=quality_table())
     (DOCS / "index.html").write_text(page, encoding="utf-8")
     print(f"docs/index.html {len(page) / 1e6:.1f} MB")
