@@ -34,6 +34,13 @@ def walk_distance_to_stop(stop_xy):
     idx = pd.Series(np.arange(len(nodes)), index=nodes.node)
     u, v = idx.loc[edges.u].to_numpy(), idx.loc[edges.v].to_numpy()
     n = len(nodes)
+    # Walking is undirected here. Repeated/reversed/parallel OSM segments are
+    # alternative paths, not consecutive distances. COO -> CSR sums duplicate
+    # coordinates, so reduce each unordered pair to its shortest length first.
+    paths = pd.DataFrame({"u": np.minimum(u, v), "v": np.maximum(u, v),
+                          "length_m": edges.length_m.to_numpy()})
+    paths = paths.groupby(["u", "v"], as_index=False)["length_m"].min()
+    u, v = paths.u.to_numpy(), paths.v.to_numpy()
     # OSM has thousands of footpath fragments that are not joined to the street network (paths inside estates,
     # podiums, parks). Snapping a stop or a home to one of them makes it look unreachable, so points are snapped only
     # to nodes of components with at least MIN_COMPONENT nodes (mainland Singapore, Sentosa and a few others).
@@ -43,10 +50,15 @@ def walk_distance_to_stop(stop_xy):
     snap_d, k = kd.query(stop_xy)
     snap_i = keep[k]
     ok = snap_d <= MAX_SNAP_M
+    # Several served stops can snap to one node. A route may begin at any one
+    # of them, so use the cheapest access arc. Sparse CSR retains an explicit
+    # zero-cost arc; adding an epsilon would exclude an exact 400 m walk.
+    snap_min = pd.Series(snap_d[ok], index=snap_i[ok]).groupby(level=0).min()
     src = n  # virtual source node
-    rows = np.concatenate([u, v, np.full(ok.sum(), src)])
-    cols = np.concatenate([v, u, snap_i[ok]])
-    w = np.concatenate([edges.length_m.to_numpy()] * 2 + [np.maximum(snap_d[ok], 1e-3)])
+    other = u != v  # a self-loop needs no second copy
+    rows = np.concatenate([u, v[other], np.full(len(snap_min), src)])
+    cols = np.concatenate([v, u[other], snap_min.index.to_numpy()])
+    w = np.concatenate([paths.length_m.to_numpy(), paths.length_m.to_numpy()[other], snap_min.to_numpy()])
     g = coo_matrix((w, (rows, cols)), shape=(n + 1, n + 1)).tocsr()
     dist = dijkstra(g, directed=True, indices=src, limit=RADIUS_M + 1)
     tree = _Snap(kd, keep)

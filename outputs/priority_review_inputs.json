@@ -1,0 +1,1079 @@
+{
+  "review_cutoff_sgt": "2026-10-03T00:06:00",
+  "raw_snapshot_files": 209,
+  "database_sha256": "ad332a078f8544539ebeaf90c586fa26283a41ef9a14af9fb1e8e4d5f476a38a",
+  "original_sources_unchanged": true,
+  "segment_geometry_sha256": "a5ac603de36d788871b7ddbfbec4a844c61ea0c176b41b44acaec6a83ca6a978",
+  "candidate_bus_links": 7579,
+  "geometry_matched_links": 6056,
+  "matched_segment_rows": 26406,
+  "eligible_links": 3378,
+  "positive_loss_links": 2637,
+  "baseline_eligible_links_same_inputs": 3378,
+  "links_excluded_by_new_validation": 0,
+  "metadata": {
+    "mode": "weekday_am_peak",
+    "snapshot_timezone": "Asia/Singapore",
+    "peak": {
+      "min_snapshot": "2026-09-28T07:47:00",
+      "max_snapshot": "2026-09-28T09:15:00",
+      "n_snapshots": 6
+    },
+    "night": {
+      "min_snapshot": "2026-09-26T22:05:00",
+      "max_snapshot": "2026-10-03T00:06:00",
+      "n_snapshots": 50
+    },
+    "min_snapshots": 4,
+    "min_valid_coverage": 0.5,
+    "eligible_links": 3378,
+    "csv_sha256": "768beba2dbbbe7be9d37eef60906e648eba94ca522a97fcb952c7b9aa856bd84"
+  },
+  "snapshots": [
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_1928.csv.gz",
+      "sha256": "0bd3b4bd5123abc52abbbc4084e2820cf768f875d7edfdbb1ec6e1271523040b",
+      "bytes": 408612
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_1933.csv.gz",
+      "sha256": "4a5cc66d8d5d0148d662a986de85ffe6bdefb685f7fa16c282a294b9de9d411b",
+      "bytes": 408534
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_1951.csv.gz",
+      "sha256": "0637d1becd1085c06b1383f0ce3714573cfb1643a19b746f1e79d497fbda0e0c",
+      "bytes": 408635
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2010.csv.gz",
+      "sha256": "21beeee7b5521e2d6184647af4f305f96234d2d31d51c8479e1978ee31553f13",
+      "bytes": 409406
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2028.csv.gz",
+      "sha256": "6fe170f5fd5737399c46e38f8dc06c01ecd8d5f83230f9da1cc6384f89dd2f43",
+      "bytes": 409146
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2045.csv.gz",
+      "sha256": "33d9a5fe4d3ca820ef4450bc02dc8ce78ad52803f934b46225673f7e931564e3",
+      "bytes": 409262
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2103.csv.gz",
+      "sha256": "544d53813abd9d57da836e000166f55388fcc5c0698a2f149b74623d91e867ab",
+      "bytes": 409217
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2124.csv.gz",
+      "sha256": "89f4059e703a8767c5dc7f8bbbd4ee759284d111166d2e28c64c113a191b5637",
+      "bytes": 409373
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2144.csv.gz",
+      "sha256": "b4295b3a46e56f119a3eaaded064fbc166e142ddc51b62554c8ac1ac3aed5109",
+      "bytes": 409323
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2205.csv.gz",
+      "sha256": "1a31639e296af8612dbba6fcf24f7e079c37994b8e95bf344bfea5d66e4359fd",
+      "bytes": 409440
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2225.csv.gz",
+      "sha256": "b6a4282624ec4b40774107b5d5b6755b7879ff3d01f53a8c62812240641afb60",
+      "bytes": 409531
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2243.csv.gz",
+      "sha256": "45018b8b2b777d068e0342cf07e5f9a258e323f737362f3d0a0c32fa31c6e9ca",
+      "bytes": 409975
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260926_2301.csv.gz",
+      "sha256": "bcca18e0f6e83f13f7ab5865ba0efa84c645f93637434d28b68260f0f78bff0a",
+      "bytes": 409932
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1550.csv.gz",
+      "sha256": "1cbd6177200ddb0f6fa2462072a2e97b4e3355660b07924fbda903a347fc2b4e",
+      "bytes": 408795
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1611.csv.gz",
+      "sha256": "3ea6acf557eee5f3fa7e9fc9c00af26af303fae6bfeea4942b77a2bbe1e7a020",
+      "bytes": 408950
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1631.csv.gz",
+      "sha256": "bbc69a64915dc13f8f95ea68c04acde4da9fda2c20df730eda482283181b75ba",
+      "bytes": 408802
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1651.csv.gz",
+      "sha256": "765bf9a1c97d5fddcb2ad0981b987d4dabdd5ff6699a2f9cfa4da8c2bf7297a8",
+      "bytes": 409047
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1711.csv.gz",
+      "sha256": "6b262f4d0a2428dc0a2e130932bfc1d07268cfc70b131b7be0574dbb5115732d",
+      "bytes": 408992
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1731.csv.gz",
+      "sha256": "662b3747cddd33cebd29c2c419f39b0b2889c37ebdc65c1d200f0f16a6b305f4",
+      "bytes": 408998
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1750.csv.gz",
+      "sha256": "0ecbccc8b5033c04036aa6cdfa9837dc0308833807ccc97994473baafd7e24db",
+      "bytes": 409225
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1808.csv.gz",
+      "sha256": "44184059a4bbdd98c4c406446dbb4d4ccce49a00e51ff90965045e6d980cb158",
+      "bytes": 409193
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1826.csv.gz",
+      "sha256": "3006829c62e78231c1a45de21f1918cbc35c77b5e4cb73eef64d39e7c2a9ce5c",
+      "bytes": 409120
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1844.csv.gz",
+      "sha256": "de81f391c5c105f29eb8fdb5f0b30349c2d96ef7a8fe2e9a8ec19917a7fdef33",
+      "bytes": 409286
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1902.csv.gz",
+      "sha256": "f33eb3af442f774bc61907ba15f0cc97da9944484a1953caf9fb4a41ec8cbf6d",
+      "bytes": 409436
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1923.csv.gz",
+      "sha256": "f0d5ba744ec3e4f5703134400e990940ad0f2969987d157b1eb2e2c496c795e2",
+      "bytes": 409185
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_1943.csv.gz",
+      "sha256": "de8c10192f9e8b7e5e6005de18fb818bd2d349521ae2590cf40370411286e806",
+      "bytes": 409005
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2005.csv.gz",
+      "sha256": "d01d51a0aa9cc20d61dbe04bb306f0139d0981e55bbf878c29bd6aff8fae3f75",
+      "bytes": 409260
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2026.csv.gz",
+      "sha256": "a9254dc2b6077e673d915ca462e932c88ff90bba99d72081f44c055d7302fe33",
+      "bytes": 409337
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2048.csv.gz",
+      "sha256": "4804e14a1e07044d5a8ca695be8458f48c3e269ac2f9c88d705d706c86942c51",
+      "bytes": 409475
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2110.csv.gz",
+      "sha256": "da24a1cb8f042ea448840f4b0075fab319b5772b31ab7894da4526f319323c8d",
+      "bytes": 409451
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2140.csv.gz",
+      "sha256": "06480d510da5f62814312c25dbbfbc88de75aecb21c015d08d6870f95ea0c4c8",
+      "bytes": 409820
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2204.csv.gz",
+      "sha256": "8aeb4ed366b791cf9f00c0c1715fdeb92bc9e28c90949d9f4332e89735992282",
+      "bytes": 409614
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2228.csv.gz",
+      "sha256": "93dbb8ba1fe687f9883b3a08a9679e973672d616cacfd36b7ef80e8dd9d4c9a6",
+      "bytes": 409939
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2251.csv.gz",
+      "sha256": "52d397f9e29c8271aae89e88b87ea10eb61daf0bb3e507ba245618d417ad2716",
+      "bytes": 410485
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2315.csv.gz",
+      "sha256": "e3829e899ee0482c0aac210df5a8541b2904d4975b1804600a2a607c7799c367",
+      "bytes": 410505
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2336.csv.gz",
+      "sha256": "9cf498b0bb10770fd099e8ea4aa0460bb946ff74086da8783052321fb182fb4e",
+      "bytes": 410799
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260927_2355.csv.gz",
+      "sha256": "044c3f9ae32bd5e1d7c71e0f97dc8155e2b7434117109f7afa7f02b9b206d99c",
+      "bytes": 411204
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0014.csv.gz",
+      "sha256": "8db8779bf96f205eba4ba3d0f83dc789316dca4402824120d29f874a7202e55d",
+      "bytes": 411763
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0033.csv.gz",
+      "sha256": "80e96f73c87884c026dae2eb76f7e2d1699b26f3c1c3ba95007987cf4c1e8672",
+      "bytes": 411673
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0051.csv.gz",
+      "sha256": "913e89b33e7536560eccabc645c3ea92c64e6e563b9f95168011eca06903763b",
+      "bytes": 412071
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0109.csv.gz",
+      "sha256": "f460054c655a90d73acd7feb5f41378bac04014eaf037a4f0e82106edaa982ba",
+      "bytes": 412148
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0130.csv.gz",
+      "sha256": "62b6c7a7dde565c1d200d262eacca06d948974cb897a3b737f39dbd81c82a2c3",
+      "bytes": 412175
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0150.csv.gz",
+      "sha256": "dee372d612c7509b427c4e9957b717af1c200313bea20b8f321713f10b0a2ae3",
+      "bytes": 412501
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0210.csv.gz",
+      "sha256": "cbac53390a44040e9b59b7d71074cb5ea346cda0aae97aa04915c3414b9637b6",
+      "bytes": 412556
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0230.csv.gz",
+      "sha256": "01534248d64c68c97f7e283cd8b03e4441bf72c12282856c3e079dbdcee93f0a",
+      "bytes": 412742
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0250.csv.gz",
+      "sha256": "eacccde8caaad98cf009c8a729ad957b70365bc3e455dbc89f236ddf61d4338b",
+      "bytes": 412500
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0315.csv.gz",
+      "sha256": "a5729d48446c18fe0bebc83c08d220d173146007bf8f98e8500a47c9e996901d",
+      "bytes": 412909
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0336.csv.gz",
+      "sha256": "5e52e490c772f501720f1d980350aa80871a736e139ac04215294b6e95aa9189",
+      "bytes": 412837
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0356.csv.gz",
+      "sha256": "5bfc9e7566a0bb1f7b82e45ed1638e436e2db85333100c5b109f4922d7f81e57",
+      "bytes": 412923
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0415.csv.gz",
+      "sha256": "a05964814a4883d6e41f1e6296ff9175c5b279e9185488d5e2bc94b8fed59ea1",
+      "bytes": 412619
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0434.csv.gz",
+      "sha256": "eee7594c27deea475036d00eed68318fa31b8b453c4bfb7ca04db4cdfb8b0685",
+      "bytes": 412629
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0451.csv.gz",
+      "sha256": "d7de2c98977fb71462a78db588d466b09c0c97a71db85e8c8b0bbab594e91094",
+      "bytes": 412379
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0509.csv.gz",
+      "sha256": "2c315d3d00da5af37339d93b4c3373d063a3b6397553b3c1ede68e395b669e2a",
+      "bytes": 411996
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0527.csv.gz",
+      "sha256": "ed0a2803689ebee52260a6a6fe10a793235ec022c06dd2ea30fd96e326e24927",
+      "bytes": 412134
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0544.csv.gz",
+      "sha256": "b6bb01376c697350132e7c3f27ebb35615b8cdedba21e1bbb78531578cc3f9a5",
+      "bytes": 411365
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0601.csv.gz",
+      "sha256": "9319a90420c053b12aa7c91389d55cf2457f0c5d1cabdeb70e5c3dcb5ecf4eac",
+      "bytes": 411051
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0619.csv.gz",
+      "sha256": "e44a7363ffa1ee987ec492e08cc975845cc76333185db89ca9ded8aacfebed14",
+      "bytes": 410746
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0636.csv.gz",
+      "sha256": "b1831ccc9d23a30f5c247a2b8c01db0553bf558563874274a7d5d265b02dc9b7",
+      "bytes": 410509
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0654.csv.gz",
+      "sha256": "abece4860a2b52797df38d989abe2b5ecc6a2b78b655c2a556cf5fcd71b8f89e",
+      "bytes": 409997
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0712.csv.gz",
+      "sha256": "014ac9e9ec467ce48eed7c2e91e546d37bfc1651b5f8a553be6bc9ea0fa02af2",
+      "bytes": 409551
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0729.csv.gz",
+      "sha256": "74e5d5c767654e9fc4f2c27de2ed59b5bd914f93d8cd0c657ee8b73fcb2a83de",
+      "bytes": 409320
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0747.csv.gz",
+      "sha256": "ae2e52026ae11cd6e46af507ac7ce34296c89eb015b0862f3a72421b2525b61f",
+      "bytes": 409193
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0804.csv.gz",
+      "sha256": "e65c56b2196bc1d4465dea2eb629db96d1f4254993e85c42ef48fb604f9c74ae",
+      "bytes": 408826
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0822.csv.gz",
+      "sha256": "faba700754e395c23380ec55515c5580db2edc8a72766594bb400a534619bd8e",
+      "bytes": 408885
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0839.csv.gz",
+      "sha256": "ad71d284350ea9f9ab04851dabd28e43433f010db8fce8f881982ab9b0387594",
+      "bytes": 408657
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0857.csv.gz",
+      "sha256": "4bd0f55f455d1ca9d5c4943bf0dcc699600462bdf16442d2d1a0d888629b410b",
+      "bytes": 408574
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0915.csv.gz",
+      "sha256": "ec52cf6f7f43a625ab8d0ae2f49ce742888546e40941f281869296ca09f92d4d",
+      "bytes": 408757
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0932.csv.gz",
+      "sha256": "262efa05978d539de4888fc16397ac61d93dc783fb281c426f4a55ea7729f118",
+      "bytes": 408962
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_0950.csv.gz",
+      "sha256": "18062e3ca23523219824effea5f5a1303971211522757e41341d4547ca274f98",
+      "bytes": 408516
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1008.csv.gz",
+      "sha256": "368ca5887369119fee6d582dafc373657b7dfaf67ab07796686b793a7062eeab",
+      "bytes": 408530
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1025.csv.gz",
+      "sha256": "ee1b8508657755ca3aa6ff8b8bed06737d75c63be26498081e330a88eb26f5b2",
+      "bytes": 408465
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1043.csv.gz",
+      "sha256": "416965b8da379fda74c8470f6663618c07be58b18dbf5c4e1d8e75da12e48934",
+      "bytes": 408749
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1100.csv.gz",
+      "sha256": "cc5db0713d54be606aac095e6586c68718527d4b068887c1e48a6538c08190b5",
+      "bytes": 408575
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1118.csv.gz",
+      "sha256": "c4b24fa1c22b55868d3b14c40c70c9a9f64fe3b717531627c04a91048c78b920",
+      "bytes": 408155
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1135.csv.gz",
+      "sha256": "08ff9c446cb58dff80b1eb5cc0d45b94f49afc7efa9c45f4b2df9cff41bb4a6b",
+      "bytes": 408396
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1153.csv.gz",
+      "sha256": "0eb9d8e05018dd3020ed41dfa2f952e98b170143c2ca11b007aa08f5ea8eb141",
+      "bytes": 408521
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1211.csv.gz",
+      "sha256": "45be91dc4cdc096118348eccd561107be708927f5c4c004a85de80e558b24aa3",
+      "bytes": 408745
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1229.csv.gz",
+      "sha256": "2282369b99f246b839db39ea04fcf0c740601e05e8009322ceed0e51f67e8617",
+      "bytes": 408979
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1247.csv.gz",
+      "sha256": "250b2b4711b3b51a6ff239fc6492fdcd75dbb771b4ff7645b7dd23871ec7cbf4",
+      "bytes": 408920
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1306.csv.gz",
+      "sha256": "ee096dffb40348aa8b26447ee6c62177cce014207b4fd06c10ecc1f68a9ece54",
+      "bytes": 409088
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1324.csv.gz",
+      "sha256": "61871ef6d9b4feeb968a67e27b62436a7494713cc47817c426f3017b525d2d77",
+      "bytes": 408690
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1342.csv.gz",
+      "sha256": "59635e709b8c2ad0520697647a5bfd9a45da58d6f2866fa3c26d9fedfae63238",
+      "bytes": 408736
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1401.csv.gz",
+      "sha256": "2d60c8ec75132ed69aef5e2d2cadfd81b53c06aa6b41c55bf6e4eb30cdda75f7",
+      "bytes": 408605
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1419.csv.gz",
+      "sha256": "c083cb8010bcdd01ded9a3bf04be13050fba651d6c5c9ebff1bca030e13d554b",
+      "bytes": 408474
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1438.csv.gz",
+      "sha256": "efb2e460bb39b45721e2f12eff801ea0be3e4ffb542c61dda3c0c000cf3c9142",
+      "bytes": 408385
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1456.csv.gz",
+      "sha256": "fdd0af3430924b058308e92cfc7385be9e04906d7656c1fcb2161632e937e9b5",
+      "bytes": 408655
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1513.csv.gz",
+      "sha256": "2447056e6ac5fa5d200433f0547f7c634e740adf55394419661c6e2d0b6c9408",
+      "bytes": 408498
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1532.csv.gz",
+      "sha256": "19e0d309ca24e7ac7f8ad4f8d0eaa27e2d8e226cc9e9ac7ee3b5f6294686c7a5",
+      "bytes": 408349
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1550.csv.gz",
+      "sha256": "fa96d72bad4b873eb12ebd998fa6182141112304ce9fc882bb95e65031f62572",
+      "bytes": 408134
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1608.csv.gz",
+      "sha256": "20fa1d3354e02aa8d650900b2cdc0aa903c029360fae55011eca422a75ac9372",
+      "bytes": 408502
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1626.csv.gz",
+      "sha256": "b9a745904ed0bd7cc771f6e7dfda4abaa6ac81dbdbcc4c5540062c79c3c595f6",
+      "bytes": 408173
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1644.csv.gz",
+      "sha256": "1a35ebfc71e38866dfc37d32dbde369fa8c9c3800f302efe2e703ed9156d5338",
+      "bytes": 408537
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1702.csv.gz",
+      "sha256": "596f1981e72a4cd076c0e778c84cae98c97445e7c4c7eaeb8c42504b961ecdda",
+      "bytes": 408829
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1720.csv.gz",
+      "sha256": "dd1c9aa3525a6553dd657263778e1e982ed2b5d56b7235ef7a6794092b78ecf7",
+      "bytes": 408562
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1738.csv.gz",
+      "sha256": "358080a43a67de85ef23c30fecb494f1230ec7e6a998ae50c2a4ae9648247762",
+      "bytes": 408706
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1756.csv.gz",
+      "sha256": "f34e548905f09990430673352e9c7c9a3d468faa7d3e4dc63664f405acaa1ab7",
+      "bytes": 408354
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1814.csv.gz",
+      "sha256": "cb7bdd83a45f78de1c80d37cef1e8a8ea138c06fe3cbeb5d949e102e4855ca81",
+      "bytes": 408677
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1832.csv.gz",
+      "sha256": "ca39f4dd41a234e094b5055c181e75c0af7e5aef964e68237b3191497b9c4aec",
+      "bytes": 408673
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1850.csv.gz",
+      "sha256": "4ecb44c1cee9d0d831f62f0e96f3bbca2643905a82595b4af98ae66fa657eb91",
+      "bytes": 409230
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1908.csv.gz",
+      "sha256": "aa52fb09b8d26ef439d1529b02b2876ddc2814f4aa42c24b560f51460be000d6",
+      "bytes": 408548
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260928_1926.csv.gz",
+      "sha256": "769039dbe19abdda00fbb4a684d7ca73c07aef62fc9429feedc5507f2e14e3a4",
+      "bytes": 408636
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1605.csv.gz",
+      "sha256": "c0f7569547126ca92cc7a5703118dce2289f6fc4cadcbe0dde34bc0d5cd819b8",
+      "bytes": 408558
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1623.csv.gz",
+      "sha256": "1ba97fb45a14fc636e9d91e10a84ea2f5cfd986ac429eb83af7204c2d65cef6d",
+      "bytes": 408393
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1641.csv.gz",
+      "sha256": "89904c1102d3a0f4628f3cc1d691f96d5ab370d624b1cdb753f824b19ae0a5d1",
+      "bytes": 408871
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1659.csv.gz",
+      "sha256": "cc8b0e8e40810eb6835910e70966a989fd0f35de645920e34b37518e5d9cdd22",
+      "bytes": 408738
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1717.csv.gz",
+      "sha256": "4ff3e99d58f50cc7b82b9227a812bfa6cdc06938da299b15c863bbda5c156762",
+      "bytes": 409409
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1735.csv.gz",
+      "sha256": "343a043b9f481234ba9934aca8360134996f159eaf77f0b471fc84cb6fb14c4f",
+      "bytes": 409024
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1753.csv.gz",
+      "sha256": "8a6b73e576103cdc10bb5204adb7efda25e041833f5459e515bc20b5e57d3222",
+      "bytes": 408953
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1810.csv.gz",
+      "sha256": "682320485348108d66445672a4c3f3359f0b5df5f3d248ffd8f968070abbdc81",
+      "bytes": 408767
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1828.csv.gz",
+      "sha256": "30781709065ff0392676a40190448b83a4825463884b897dd66eceec9885cbd1",
+      "bytes": 408949
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1846.csv.gz",
+      "sha256": "ab0ed9835505eb0547ad3430f11b13309210863c086b0b49844620aec934675f",
+      "bytes": 408583
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1904.csv.gz",
+      "sha256": "a9cd28044cc725a71038deeaa367b9c0087379bd7cf120b68850a4357698182c",
+      "bytes": 408682
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1922.csv.gz",
+      "sha256": "13650a896c24312b370c25926c70c5b0a87292e738067081221d3c673b3e55cd",
+      "bytes": 408733
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1940.csv.gz",
+      "sha256": "b49a3b4d5d785269a28fef2f7839ca13bb68c48b7ef39404b54f453f8b8a081e",
+      "bytes": 408260
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_1958.csv.gz",
+      "sha256": "29cf4b3a0d7feb94b2c21c55b55d36140d8246665c9f8c7208c6bcb6cd08e3ab",
+      "bytes": 408710
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2016.csv.gz",
+      "sha256": "fe41b5129ac80bb678b0687f21affc171538f99c28bb894b597b00769e3e9632",
+      "bytes": 408505
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2034.csv.gz",
+      "sha256": "c142eb442796b31789ffd422e64211367a4467c0404367da5afdf7e804842d37",
+      "bytes": 408751
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2053.csv.gz",
+      "sha256": "d1a1e600ce7fd124131f4a8311e1705631f8998c379b4b63c501a5d97d1fb219",
+      "bytes": 409048
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2111.csv.gz",
+      "sha256": "0f41e4f2755700402f5b46cea2f0946895e3103d098c88f02347468f6932116c",
+      "bytes": 409198
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2129.csv.gz",
+      "sha256": "8acd1fc8d8a2049e75226605e1dad16a7e3f8a5220384890917e0ee1d3f9fc96",
+      "bytes": 409239
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2148.csv.gz",
+      "sha256": "11cc79c03c26458902b04e94d1410f35583ac8240c724e31026f5b10f7164bab",
+      "bytes": 409513
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2206.csv.gz",
+      "sha256": "f15d9cb5c0747ea8a1d5c370bb921a4ffdc624c878aef408107a9a6fdb421938",
+      "bytes": 409700
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2224.csv.gz",
+      "sha256": "70ab99e25cdf593cd794cfadc3d7ab44c29edf5965ed74f0ac0b7e0aa2f6046b",
+      "bytes": 409546
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2242.csv.gz",
+      "sha256": "ee887c2199214bd0bc15c0c00b24b1598488ed9ea82efb544273b5bb1a23005a",
+      "bytes": 409976
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2300.csv.gz",
+      "sha256": "141c7c4ed133b933d606c0f74fa293a4ad1ad17847154d8370fcd124d223688e",
+      "bytes": 410259
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2318.csv.gz",
+      "sha256": "8e4cb6290fe6afe0fe80b3f1593eb932498d634fff3ffa1d5cb534d2da911eb3",
+      "bytes": 411038
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2336.csv.gz",
+      "sha256": "bf496b56145f399179a07405ca0fe869e0a171efc8fe886cb7d13c4c428b026b",
+      "bytes": 410724
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260929_2355.csv.gz",
+      "sha256": "f9f747a4872986f869d64723c4ea1202b822d7a19b5c5e57267a3b6e11bc93c6",
+      "bytes": 410886
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0013.csv.gz",
+      "sha256": "88dfa6f910057e407be0d96be036ad86131e2dd970c42818b02b8e90946143d0",
+      "bytes": 410937
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0031.csv.gz",
+      "sha256": "fea008387074c3b756fe9712b635353f1958c3c8ca481d9b5739a5c5051faebd",
+      "bytes": 411306
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0049.csv.gz",
+      "sha256": "51b17e709e9e6c0beabe621c13fdf8e416109227b202a3f93476702062958c0d",
+      "bytes": 411627
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0107.csv.gz",
+      "sha256": "7e40046d68783dc774626e24bf96bac506b39db22c3e5241ba7efa37816a7112",
+      "bytes": 411639
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0125.csv.gz",
+      "sha256": "146c2a4368b05be23615b60c6857d14eff16a690a2e37c0a96683c98b7c786c5",
+      "bytes": 411789
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0143.csv.gz",
+      "sha256": "27fdfbee63b750aadea0cfe045686579f5ad9f1b40d8417531c0d79fd43c44f6",
+      "bytes": 411907
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0201.csv.gz",
+      "sha256": "a4cff2d27984280675d97c1577322aeaf3206e138f088ab0733db0c93c6e7b2e",
+      "bytes": 411841
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20260930_0219.csv.gz",
+      "sha256": "fcc4fe7b9eae2e41c378155fff6401d55e4a03dc2a710a6130b4152d6a8d3b05",
+      "bytes": 411837
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1204.csv.gz",
+      "sha256": "8f6e59b1731f6cbf6067e60bd8edb7bd60d4bcae08818cdb3afd0885cd5db19e",
+      "bytes": 408841
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1222.csv.gz",
+      "sha256": "e4efa7cdaf3ef3f6221aa78b43030c60ddc2ad19ab4837a19d947a78c3e62f91",
+      "bytes": 408854
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1240.csv.gz",
+      "sha256": "bd4ce0112a8a3c3c9e38a108366d00d94479d72f6ebe57f6b92f42f98bea09ef",
+      "bytes": 408922
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1258.csv.gz",
+      "sha256": "a2e9b01680b94335372ccde7105cde30d3aff09048e85b12e6bbc5f89072af73",
+      "bytes": 409035
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1317.csv.gz",
+      "sha256": "8bd322b2154c5375460142332e57e4c98400016f2bee62215c9e3984ceb84a50",
+      "bytes": 409013
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1335.csv.gz",
+      "sha256": "6ec72a1e1a78e7ad30a3bf453fa6066c3070b43a2f8ee89d01a93b6370f9cfb1",
+      "bytes": 408648
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1353.csv.gz",
+      "sha256": "ca29c7f822ba0f1c8c7b4cf20a4a50fbdb5c5a2a948c0b809060c5569e2a78b7",
+      "bytes": 408526
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1412.csv.gz",
+      "sha256": "9efe9fcd6f567af5d31c81bee061e53c3821bda8321bbc50f3619354dc103f87",
+      "bytes": 408143
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1430.csv.gz",
+      "sha256": "3f2219200bc7d43c745183ad0c2de9fa852e4730e1a9c672fb721673a22b7a4c",
+      "bytes": 408430
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1448.csv.gz",
+      "sha256": "f4c3070d6965ce1a2c1ceed0ad644f771e35b80e1bc6412c897ac75035b6c48d",
+      "bytes": 408305
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1506.csv.gz",
+      "sha256": "1cce5db3ac5155d20ca4dad3557ecd504918be7035b2b21b60f2e51178047ed5",
+      "bytes": 408421
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1523.csv.gz",
+      "sha256": "a277cd49253878b7b5ceb5ff495f71722e70dc1b12aa747e00ee846128e70490",
+      "bytes": 408417
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1541.csv.gz",
+      "sha256": "ce197b59f57a2c3f01c3a0e9121e0e73db8c577917841993f62fa4b19eed0886",
+      "bytes": 408376
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1601.csv.gz",
+      "sha256": "3cadb9b00d9250174e3ec03da931f0f26628bbd8f94f71f1fce82e3d14a2c035",
+      "bytes": 408484
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1620.csv.gz",
+      "sha256": "581938ed1f1844542cb1c6a5528f994f6ba3f813356ccaf855d13417ad4a96fe",
+      "bytes": 408546
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1657.csv.gz",
+      "sha256": "8167dc67158cb4466f04371e2df8ed741c7a44d71140b1453f5a8e3e1c01c963",
+      "bytes": 408565
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1715.csv.gz",
+      "sha256": "2dd4182fb092910a5b18132b3c9456356ccc10e8cd01eb067243ec2e757efdf5",
+      "bytes": 408950
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1734.csv.gz",
+      "sha256": "cdf9938f5052595300c0b1f256395c4880683447330c9be5ebef9087b3f172e6",
+      "bytes": 408949
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1755.csv.gz",
+      "sha256": "003abafe9e9671a21d2aba3d176c9d35242a677df9f151d97983cdbc28777193",
+      "bytes": 408598
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1813.csv.gz",
+      "sha256": "8502880ef1916b767150dd1a7834c56e2cad2e771a83ed73d0578b122128ea5f",
+      "bytes": 408618
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1831.csv.gz",
+      "sha256": "f1dd6f3757546c03ed123422c57e650b62e83c3125f5c834d54c79d3dcff6041",
+      "bytes": 408499
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1849.csv.gz",
+      "sha256": "8c49d9e7e9ad756d7c8d8c422e68c56c5fe848cd6aa320553e23dd3a76b77434",
+      "bytes": 408821
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1908.csv.gz",
+      "sha256": "3276643964951bb6c14bba31486233cdac39523efb15e281d98eba17c74cd597",
+      "bytes": 408472
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1926.csv.gz",
+      "sha256": "07c2eb450b8a8d5dbee2a4d7e8d21e819acd02f072bc17c8dcff92f2e21d7311",
+      "bytes": 408527
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_1943.csv.gz",
+      "sha256": "3ebe67bfef31246a058561295336bb46e2a040b1997eb0d8c350ed34630d4c5b",
+      "bytes": 408253
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2002.csv.gz",
+      "sha256": "f1cf42ea6ff0cce7906fb37db676cda5be055c7b125341a2515c7b3868ddc4b4",
+      "bytes": 408714
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2020.csv.gz",
+      "sha256": "27c8e7f0a3d3edc0265e021b5ce1860450db9912d04864f768b54627769c82b2",
+      "bytes": 408970
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2038.csv.gz",
+      "sha256": "777cb8ee06188aa39b52a5a46e69a01b415706e4646c359234f240cca0bee419",
+      "bytes": 408921
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2056.csv.gz",
+      "sha256": "a819cbeaf53e78f56939149129faf0a63e84f5358b667662b4aed774f7e83740",
+      "bytes": 408983
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2114.csv.gz",
+      "sha256": "7381c0e2de8005047906801027916cbb2cf66972fba98b0d2b6d6289eae00667",
+      "bytes": 409210
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2132.csv.gz",
+      "sha256": "059ecd1aaea1ac406576ec938fb9aeccd013dd93a8caf8128c6542d174172f10",
+      "bytes": 409049
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2151.csv.gz",
+      "sha256": "8b0ccefecd95fe1467f55deead01cbae70060d3147309eea0a34915b621050e7",
+      "bytes": 409332
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2209.csv.gz",
+      "sha256": "7a9ef7287bff4a744824209adc8e86d0a117ae7bbcaf60a58d8f9bd7c1cc9ebe",
+      "bytes": 409692
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2227.csv.gz",
+      "sha256": "67ff1ecef600807debc7846e56659c505f141dff7438f073334d9dfe83a8c095",
+      "bytes": 409738
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261001_2246.csv.gz",
+      "sha256": "18949fdc44371f7910ac6a494baac00b90ed58afba9b3eebe5e6854529eda9ef",
+      "bytes": 409991
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1135.csv.gz",
+      "sha256": "ee265bf4b1e46d5f9a9f11ed2a1a51047ab67e7310232271f36bf62a78a2e26e",
+      "bytes": 408480
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1312.csv.gz",
+      "sha256": "416181bfd39ab8833145b4ea4c319eb931e1f09ea67cb83850b157a782398b58",
+      "bytes": 409284
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1330.csv.gz",
+      "sha256": "178f793c5b45dd4d9805220b23a7f27eff7952325272dd41271591e8a4190a0c",
+      "bytes": 408847
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1347.csv.gz",
+      "sha256": "80ac0efee74aafaab262bd9ab9304071efd0a7ed490e4506e051f313ab361991",
+      "bytes": 408832
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1405.csv.gz",
+      "sha256": "b4435bb68a5b0835d1c8896f13136886b79f511ec2c013c689b933a1ed538111",
+      "bytes": 409102
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1422.csv.gz",
+      "sha256": "f7f8e8fe34f5a1f8c0db3554b4e36173297ad8581492581237c613f3e112f8e4",
+      "bytes": 409498
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1440.csv.gz",
+      "sha256": "567d3f3b5759f8dcd5e0b3334baccee1ecd8fc28dbac2f5dd82a28a222509d39",
+      "bytes": 408614
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1457.csv.gz",
+      "sha256": "48e28556f65864ec66a75054c559aaaa5d204e369fd8a4069120dd7051b4f621",
+      "bytes": 409184
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1515.csv.gz",
+      "sha256": "4ff314fdad65c562b474be6550fb5af3793fdb905f342ce2967b80d15f7c459a",
+      "bytes": 408359
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1532.csv.gz",
+      "sha256": "18333e52316c0e4c8e2de3dad4da4693f0dbf6f1b082c62386600cf8669ca9bc",
+      "bytes": 408662
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1550.csv.gz",
+      "sha256": "29096ae1b41648b09bd41398c3eee6c8629b375c553f9b0af94d9e0664e6773e",
+      "bytes": 408399
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1607.csv.gz",
+      "sha256": "4e8443567665dfb4a3b97d55a958c805b7a03bcd7dac19195cff20e8b7b57bca",
+      "bytes": 408516
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1625.csv.gz",
+      "sha256": "de78f2f61233b3bde6787522642a2b8bf02a7e509f9fec8124c9b371f4dcdda7",
+      "bytes": 408305
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1643.csv.gz",
+      "sha256": "648d3e4c5b912ed6b2afd8a668cbeb5d6726c5bde56efb53415b0afa6de93cec",
+      "bytes": 409103
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1702.csv.gz",
+      "sha256": "a125a67916ff7156b482137f761ea1b4e781962bb65329136b6431db5767ee4a",
+      "bytes": 408964
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1722.csv.gz",
+      "sha256": "46cfc34b583ae1ab1a5fdcc32592182d0dea31edd46e09d53422acb3c5e552ef",
+      "bytes": 409103
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1739.csv.gz",
+      "sha256": "1f95bcdbd155a625f984f983ef9da891e753d5d9dbdc21929db6667bf74f01ef",
+      "bytes": 408797
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1758.csv.gz",
+      "sha256": "3ad92b00c761449381d021e5ceb51b1cf1f989fa5820a725ba9016e55e3c9b09",
+      "bytes": 408773
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1816.csv.gz",
+      "sha256": "fed093938eaf56e669c223dbd78b95da3468a0593b3816d42e826b73129c76bf",
+      "bytes": 408392
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1833.csv.gz",
+      "sha256": "6ddaf7382bd77b021c9055e2869fe00e1833ce881528aac2d4df857c3ca1f657",
+      "bytes": 408626
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1851.csv.gz",
+      "sha256": "66932c4494f2e34e7c77671c1b5e0a3baf265f343f6e59fa149790061d837751",
+      "bytes": 409000
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1908.csv.gz",
+      "sha256": "62b590c4beba9a53d15e647339b5e647b0c6ae5c9f12666cab59199597d6a62b",
+      "bytes": 408810
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1926.csv.gz",
+      "sha256": "28b6f2bd14eafbff49ea122dbc4acab3c8d3599e51ed40f3e8ee129ab2bf3e39",
+      "bytes": 408498
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_1943.csv.gz",
+      "sha256": "6d0e03553787b7c9247393a94e9a6908b0d991877b962569f13a293fd1c0c281",
+      "bytes": 408215
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2000.csv.gz",
+      "sha256": "5cd01636cdf9fe87a37d4c11e6e9ac18b166983dd8210f467472d3fb19e7a306",
+      "bytes": 408645
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2018.csv.gz",
+      "sha256": "0dcd3825c1b9e4662baf76513b01d5072f43abf152632ac63edf81d522164dfa",
+      "bytes": 409055
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2036.csv.gz",
+      "sha256": "1b21c68d153813b6d22406952f85ab62540588ae4126f44662fb8807d93fb431",
+      "bytes": 408589
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2053.csv.gz",
+      "sha256": "c4b948406e5957fd8e8010b5127866880f8ce55737c2385ac8c89365e1d4016b",
+      "bytes": 408774
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2110.csv.gz",
+      "sha256": "bc50eae43bbfb805c04062ba45c52dcbaecc86d9cba9a51e95b8823f9809418d",
+      "bytes": 408849
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2128.csv.gz",
+      "sha256": "f0a2d3ba3c70b496447d55ec94d5a5a3739f1d60cebba238c62294fdb33da7d8",
+      "bytes": 409033
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2146.csv.gz",
+      "sha256": "c70ce27b46904b87c2c690b88e79eb10124f3935d6a4a0d17b9beaf48825d6c6",
+      "bytes": 409042
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2203.csv.gz",
+      "sha256": "da0a781ac4c4fa4d4e3ce7661d4afb19e44a17ccaf06675d7354b7006cff1f8d",
+      "bytes": 409013
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2221.csv.gz",
+      "sha256": "b79999b73060d1045f813b0dbad9d061e1521a0732aff67ff84b5535f30c5b87",
+      "bytes": 409096
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2239.csv.gz",
+      "sha256": "bb870517e487f1c0cb975e4a0adee64eaab21969365b23061b2f4650073da75c",
+      "bytes": 409419
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2256.csv.gz",
+      "sha256": "44ba460594c88d0fe86d4e862c0b8afa5e157e0edaca6cf0d1803b12a865f0ce",
+      "bytes": 409728
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2316.csv.gz",
+      "sha256": "87bb7abf8ab15e7e55da105091f8a992491805e2f9061a557c98efc20c18e057",
+      "bytes": 410323
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261002_2341.csv.gz",
+      "sha256": "966526a1ad8b49a6f8b6aebe83141bc6b759c3ec5326564711f2fa19b3c64cee",
+      "bytes": 410690
+    },
+    {
+      "file": "data/raw/datamall/speedbands/sb_20261003_0006.csv.gz",
+      "sha256": "2758ab238fd2ee04fa4adaa701f979ffa391c8116e75a8f7183759f37110e15d",
+      "bytes": 410907
+    }
+  ]
+}

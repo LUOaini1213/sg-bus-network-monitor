@@ -74,13 +74,26 @@ Residents (GHS 2025) are placed on Master Plan housing parcels, weighted by plot
 | Straight line, 308 m (400 m with a 1.3 detour factor) | 96.7% |
 | Along the OpenStreetMap walking network, 400 m (lower bound) | 79.7% |
 
+The 79.7% is an archived measurement from the original graph builder. A separate [walking-graph review](docs/WALK_GRAPH_REVIEW_20261012.md) fixes duplicate-weight aggregation and exact zero-snap boundaries using actual Parquet fixtures. The original city inputs are unavailable in that review checkout, so the archived outputs remain unchanged and no corrected city-wide estimate is claimed.
+
 - The walking-network figure is a lower bound. OSM misses many void-deck and covered-linkway shortcuts in HDB estates: the median walking-to-straight-line ratio comes out at 1.77, above typical urban values.
 - The ranking is stable across all three measures. The lowest areas are the landed estates of **Tanglin** (45–82%) and **Bukit Timah** (50–76%), then Bishan and Tengah.
 - Spreading residents evenly over each subzone instead of onto housing land creates false gaps. Yishun would appear at 93.7% because Lower Seletar Reservoir sits inside one of its subzones.
 
 ### Bus priority screening
 
-Links shared by many buses are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Speed-band snapshots are collected about every 20 minutes (a 15-minute pause after each 4-minute pull), so this section fills in after the first weekday AM peak (28 September 2026).
+Links are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Each link needs at least four valid snapshots in each period. In each snapshot, segments with finite positive speeds and lengths must cover at least half the bus link's length; missing observations do not count as zero speed. The sampling script takes about 20 minutes per snapshot (a 15-minute pause after each 4-minute pull).
+
+The reviewed build has **3,378 eligible links**, of which **2,637** have a positive estimated AM loss. Its AM data consists of **six snapshots on 28 September, 07:47–09:15**, compared with **50 night snapshots from 26 September to 3 October 2026** (Singapore time). This is one observed morning, not a representative multi-day delay estimate. Dates and counts are recorded alongside a hash of the displayed CSV in `outputs/priority_screen_metadata.json`; the dashboard shows a top-40 map and top-10 table.
+
+### Reliability review, 3 October 2026
+
+- Filtering anomaly flags before deduplicating stops restores OD evidence for **14 median-baseline-only stops**. All **71 median-flagged stops** now have OD evidence, up from 57. Their categories and the underlying monthly counts are unchanged. `flag_baseline` identifies which comparison supplied the flag; the OD change itself remains July → August.
+- Regression fixtures cover missing/invalid speeds, insufficient coverage and per-link sample counts. The saved real-data window retains the same 3,378 eligible links as the previous algorithm; the fixtures demonstrate the edge cases rather than claiming the current sample had false congestion.
+- A run with insufficient observations now replaces previous rankings with an empty result and records the actual observation window. Smoke output is separate. Missing data is not presented as proof of no congestion.
+- The mutation check first requires the full suite to pass and verifies each changed module can compile/import. Test collection or environment failures no longer count as detected bugs.
+
+See [review evidence and reproduction details](docs/REVIEW_20261003.md).
 
 ## Method
 
@@ -112,7 +125,7 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
   - 236 of 26,842 route rows skip a sequence number.
   - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
 - **Tests:**
-  - 50 unit tests, and `tests/mutate.py`, which makes 21 deliberate bugs that must each fail at least one test. CI runs both.
+  - 94 tests, and `tests/mutate.py`, which makes 28 deliberate bugs that must each fail at least one test. CI runs both.
   - The check has found test gaps twice, and both were closed:
     - the first test set let 3 of 13 bugs through;
     - the anomaly rules let 3 of 18 through.
@@ -122,6 +135,7 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
 - Straight-line catchments overstate access and the OSM walking network understates it. The two bracket the true figure.
 - Headway bands describe scheduled service, not observed buses.
 - Speed bands describe general traffic. Buses also stop at bus stops.
+- Speed coverage is estimated from matched segment lengths, not a union of road geometry. Band midpoint speeds and the resulting priority scores are screening approximations; the current AM sample covers only one morning.
 - A surveillance flag with no verified cause is a lead. It becomes a finding when a source or the next month confirms it.
 
 ## Run it

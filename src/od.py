@@ -8,7 +8,8 @@ Outputs:
   od_top_pairs_2026-08.csv       busiest stop-to-stop pairs (weekday, per day)
   od_trip_length_2026-08.csv     distribution of straight-line trip lengths
   od_flagged_stops.csv           for each stop flagged by the surveillance, where its August trips go and how that
-                                 changed from July (the evidence used in docs/ANOMALIES.md)
+                                 changed from July (the evidence used in docs/ANOMALIES.md); flag_baseline identifies
+                                 the surveillance source of flag/pct_change, not the fixed July-August OD comparison
 """
 from pathlib import Path
 
@@ -87,17 +88,25 @@ def trip_lengths(con, ym="2026-08"):
 
 
 def flagged_stop_flows(con):
-    s = pd.concat([pd.read_csv(OUT / f"surveillance_2026-08_vs_{b}.csv", dtype={"stop": str})
-                   for b in ("2026-07", "baseline_median")]).drop_duplicates("stop")
-    flagged = s[s.flag.isin(["surge", "drop"])].stop.tolist()
-    con.execute("create or replace temp table flagged as select unnest(?) as stop", [flagged])
+    candidates = []
+    for baseline in ("2026-07", "baseline_median"):
+        source = pd.read_csv(OUT / f"surveillance_2026-08_vs_{baseline}.csv", dtype={"stop": str})
+        source = source.loc[source.flag.isin(["surge", "drop"])].copy()
+        source["flag_baseline"] = baseline
+        candidates.append(source)
+    # Filter before deduplication: a normal July row must not hide a flag from
+    # the median baseline. If both flag, retain July's metadata as before.
+    s = pd.concat(candidates, ignore_index=True).drop_duplicates("stop")
+    flagged = s.stop.tolist()
+    con.execute("create or replace temp table flagged as select unnest(?::VARCHAR[]) as stop", [flagged])
     q = lambda ym: f"""select t.o as stop, pd.pa as dest_pa, sum(t.trips) as trips
         from {weekday_per_day(con, ym)} t join stop_pa pd on pd.stop = t.d where t.o in (select stop from flagged) group by 1, 2"""
     jul, aug = con.execute(q("2026-07")).df(), con.execute(q("2026-08")).df()
     m = jul.merge(aug, on=["stop", "dest_pa"], how="outer", suffixes=("_jul", "_aug")).fillna(0)
     m["change"] = m.trips_aug - m.trips_jul
     top = m.sort_values("change", key=abs, ascending=False).groupby("stop").head(3)
-    top = top.merge(s[["stop", "Description", "RoadName", "flag", "pct_change"]], on="stop")
+    top = top.merge(s[["stop", "Description", "RoadName", "flag", "pct_change", "flag_baseline"]],
+                    on="stop", validate="many_to_one")
     return top.sort_values(["flag", "stop", "change"])
 
 

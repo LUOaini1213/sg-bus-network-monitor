@@ -1,0 +1,2 @@
+# Keep the bytes bound to priority_screen_metadata.json stable across checkouts.
+outputs/priority_screen*.csv text eol=lf

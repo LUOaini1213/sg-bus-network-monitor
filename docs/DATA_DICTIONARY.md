@@ -68,6 +68,7 @@ Links each LTA speed-band road segment to the bus links it runs along.
 | LinkID | Speed-band segment ID (geometry in `data/raw/datamall/speedband_links.csv`) |
 | RoadName, RoadCategory | Segment road name; category 1 = expressway |
 | seg_m | Segment length in metres (SVY21) |
+| link_km | Bus link length, used to check valid speed coverage separately in each snapshot |
 | seg_road | Normalised segment road name |
 | same_road | True if the segment's road name matches either stop's road |
 
@@ -114,10 +115,11 @@ Each stop's URA MP2019 planning area and SVY21 position (x, y). The four stops i
 | `od_planning_area_2026-08.csv` | origin × destination planning area | trips_per_weekday |
 | `od_top_pairs_2026-08.csv` | stop pair | trips_per_weekday, am_peak_trips (07:00–08:59) |
 | `od_trip_length_2026-08.csv` | distance band | weekday trips by straight-line distance between the tap-in and tap-out stops |
-| `od_flagged_stops.csv` | flagged stop × destination planning area | trips_jul, trips_aug, change |
+| `od_flagged_stops.csv` | flagged stop × destination planning area | trips_jul, trips_aug, change (always July → August weekday trips/day); flag, pct_change, flag_baseline (2026-07 or baseline_median identifies the surveillance comparison, not the OD comparison). Includes stops flagged by either baseline; July metadata takes precedence when both flag. |
 | `coverage_measures.csv` | measure | share of residents reached: straight line 400 m, straight line 308 m, OSM walking network 400 m |
 | `coverage_walk_planning_area.csv` / `coverage_walk_subzone.csv` | planning area / subzone | residents, coverage_line, coverage_line13, coverage_walk, gap_pts, residents_outside_walk |
-| `priority_screen.csv` | bus link | services, AM_Peak_bph, link_km, match_ratio, v_peak and v_ref (km/h), bus_h_lost_per_h (written once there are 4+ weekday AM peak and 4+ night snapshots) |
+| `priority_screen.csv` | eligible bus link | services, AM_Peak_bph, link_km, match_ratio, v_peak and v_ref (km/h), bus_h_lost_per_h. Each link needs 4+ valid weekday AM and 4+ valid night snapshots. Each valid snapshot needs finite positive speeds/lengths covering at least 50% of that link's length. Missing samples are excluded, never treated as zero speed. A build with no eligible links replaces old results with a header-only CSV. |
+| `priority_screen_metadata.json` | screening build | Observed peak/night snapshot ranges and counts (Singapore local time), minimum sample count, number of eligible links, mode, and CSV SHA256. The dashboard shows dates only when the hash matches its CSV. Smoke runs use the separate priority_screen_smoke stem. |
 
 ## Conventions
 

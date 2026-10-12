@@ -1,0 +1,18 @@
+{
+  "mode": "weekday_am_peak",
+  "snapshot_timezone": "Asia/Singapore",
+  "peak": {
+    "min_snapshot": "2026-09-28T07:47:00",
+    "max_snapshot": "2026-09-28T09:15:00",
+    "n_snapshots": 6
+  },
+  "night": {
+    "min_snapshot": "2026-09-26T22:05:00",
+    "max_snapshot": "2026-10-03T00:06:00",
+    "n_snapshots": 50
+  },
+  "min_snapshots": 4,
+  "min_valid_coverage": 0.5,
+  "eligible_links": 3378,
+  "csv_sha256": "768beba2dbbbe7be9d37eef60906e648eba94ca522a97fcb952c7b9aa856bd84"
+}
