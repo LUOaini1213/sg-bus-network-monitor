@@ -6,5 +6,6 @@ __pycache__/
 outputs/priority_screen_smoke.csv
 outputs/priority_screen_smoke_metadata.json
 .pytest_cache/
+.venv/
 data/processed/*.parquet
 data/processed/*.npy

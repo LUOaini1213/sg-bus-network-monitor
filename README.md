@@ -74,6 +74,8 @@ Residents (GHS 2025) are placed on Master Plan housing parcels, weighted by plot
 | Straight line, 308 m (400 m with a 1.3 detour factor) | 96.7% |
 | Along the OpenStreetMap walking network, 400 m (lower bound) | 79.7% |
 
+The 79.7% is an archived measurement from the original graph builder. A separate [walking-graph review](docs/WALK_GRAPH_REVIEW_20261012.md) fixes duplicate-weight aggregation and exact zero-snap boundaries using actual Parquet fixtures. The original city inputs are unavailable in that review checkout, so the archived outputs remain unchanged and no corrected city-wide estimate is claimed.
+
 - The walking-network figure is a lower bound. OSM misses many void-deck and covered-linkway shortcuts in HDB estates: the median walking-to-straight-line ratio comes out at 1.77, above typical urban values.
 - The ranking is stable across all three measures. The lowest areas are the landed estates of **Tanglin** (45–82%) and **Bukit Timah** (50–76%), then Bishan and Tengah.
 - Spreading residents evenly over each subzone instead of onto housing land creates false gaps. Yishun would appear at 93.7% because Lower Seletar Reservoir sits inside one of its subzones.

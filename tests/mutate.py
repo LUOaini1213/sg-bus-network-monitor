@@ -58,6 +58,16 @@ MUTANTS = [
     s = pd.concat(candidates, ignore_index=True).drop_duplicates("stop")
     s = s.loc[s.flag.isin(["surge", "drop"])].copy()'''),
     ("od.py", 'source["flag_baseline"] = baseline', 'source["flag_baseline"] = "2026-07"'),
+    # Duplicate sparse coordinates must represent alternative paths, not sums.
+    ("coverage_walk.py", 'paths.groupby(["u", "v"], as_index=False)["length_m"].min()',
+     'paths.groupby(["u", "v"], as_index=False)["length_m"].sum()'),
+    ("coverage_walk.py", '"u": np.minimum(u, v), "v": np.maximum(u, v)', '"u": u, "v": v'),
+    ("coverage_walk.py", '.groupby(level=0).min()', '.groupby(level=0).sum()'),
+    # A larger parallel path listed first is not necessarily the shortest one.
+    ("coverage_walk.py", 'paths.groupby(["u", "v"], as_index=False)["length_m"].min()',
+     'paths.groupby(["u", "v"], as_index=False)["length_m"].first()'),
+    # Sparse zero-weight access arcs are valid: an epsilon loses the 400 m edge.
+    ("coverage_walk.py", 'snap_min.to_numpy()])', 'np.maximum(snap_min.to_numpy(), 1e-3)])'),
 ]
 
 

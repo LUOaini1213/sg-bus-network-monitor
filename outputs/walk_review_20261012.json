@@ -1,0 +1,433 @@
+{
+  "scope": "Synthetic graph function evidence only; actual module imports and real Parquet I/O, not a city/population pipeline rerun.",
+  "base_commit": "035d91bb9ed127e79f6adf4dc0c106f16289da53",
+  "base_coverage_walk_git_bytes_sha256": "afcb88acf7f3f2d6052e1622e50c8163247fa49fca1bd178485fcfc13e54d758",
+  "rules": {
+    "MIN_COMPONENT": 1000,
+    "MAX_SNAP_M": 150,
+    "RADIUS_M": 400
+  },
+  "python": "3.11.17",
+  "packages": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.6",
+    "scipy": "1.17.1",
+    "pyarrow": "26.0.0",
+    "geopandas": "1.2.0",
+    "pyproj": "3.7.2",
+    "duckdb": "1.5.6",
+    "pytest": "9.1.1"
+  },
+  "source_sha256": {
+    "src/anomalies.py": "aae5c6e0cb8cd52cf79f3659bc5d85021f58e0235d7c22a136e341eeffd3721f",
+    "src/build_db.py": "9552c94b3aea0a76f3c9399ac0af0326b05ba54903f1027a1d66fbfcaeab6301",
+    "src/corridors.py": "d1ff311e20014f6d3dcea7676c1fbcbcfb575bec8fbaf01cbb5c5f2aec53cb4d",
+    "src/coverage.py": "8628a7a6869bb95731602ff598fc5481ff7e2ec60f9c4a9e90fa9dbb1871103b",
+    "src/coverage_walk.py": "e0b28780f7ab9aef7d989e82ec3a8fc42dc9e984f8df091d1df3772bca093ad1",
+    "src/dashboard.py": "1c11d1603eb5acb5bf3724812771844b93417bc75f81786362f023c8787d5f46",
+    "src/datamall.py": "0798f6512435b723a0ace6fdbaeefaa4af904a450c9264e1b0cd4699b7c1872c",
+    "src/demand.py": "b92657d835d3c2133ce47e15aa8985bfbafc902b8355098fd80a62ad10d64ad4",
+    "src/fetch_public.py": "d208f258383e2497a1d0d303770d4953d48dec44fb8d4ca215e2e35e1ab4988a",
+    "src/od.py": "f0cc2b811f39946d2cb995a66a806dd3f2d68389286bba2ce72ce9fc2e099516",
+    "src/priority.py": "9d35aa04fcf6de9c4dc6ca0aeabae0d5b4b0d25a05381d64093fabac594421f0",
+    "src/walk_network.py": "cefcd3e54a750982ccff543202e2c527ad2feaa0e4ec515469d9b10d7011e6f6",
+    "tests/test_coverage_walk.py": "b640f587cb1ffc89b7cafc51e95b4fbb1675b3cdf38879874d4b5d5bd7db2823",
+    "tests/mutate.py": "95cf796db7f28b1fccbaf19125ed43b8500c8017ae3fd0bdc7638172929a6245",
+    "requirements.txt": "504de57e2c891e6f23e24129219dace68f6c7ef97b6d5cd5c2a2fb5e85eb767a"
+  },
+  "raw_city_network_available_in_review_checkout": false,
+  "city_outputs_recomputed": false,
+  "cases": [
+    {
+      "name": "shared_snap_two_stops",
+      "stops": [
+        [
+          0,
+          100
+        ],
+        [
+          0,
+          -100
+        ]
+      ],
+      "length": 280,
+      "home": [
+        280,
+        0
+      ],
+      "expected_m": 380,
+      "parquet_sha256": {
+        "walk_edges.parquet": "531e505bba8432502aa030cbc150bb89ed35d3127bfcfe1a1608ba29b5c03a8a",
+        "walk_nodes.parquet": "baf9d2aa4e343da4274dbae8f9fd6153c22879bdd4e94bd8937bea3deea89f13"
+      },
+      "before": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 380.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "unequal_shared_access",
+      "stops": [
+        [
+          0,
+          100
+        ],
+        [
+          0,
+          -50
+        ]
+      ],
+      "length": 280,
+      "home": [
+        280,
+        0
+      ],
+      "expected_m": 330,
+      "parquet_sha256": {
+        "walk_edges.parquet": "531e505bba8432502aa030cbc150bb89ed35d3127bfcfe1a1608ba29b5c03a8a",
+        "walk_nodes.parquet": "baf9d2aa4e343da4274dbae8f9fd6153c22879bdd4e94bd8937bea3deea89f13"
+      },
+      "before": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 330.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "reversed_duplicate_edge",
+      "stops": [
+        [
+          0,
+          100
+        ]
+      ],
+      "length": 280,
+      "extra": [
+        [
+          1,
+          0,
+          280
+        ]
+      ],
+      "home": [
+        280,
+        0
+      ],
+      "expected_m": 380,
+      "parquet_sha256": {
+        "walk_edges.parquet": "2e58b5955df5e2a8d5411f1cb68f80925b0ad5fce6750c5a72a6e11a1a7b2efa",
+        "walk_nodes.parquet": "baf9d2aa4e343da4274dbae8f9fd6153c22879bdd4e94bd8937bea3deea89f13"
+      },
+      "before": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 380.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "longer_parallel_edges_first",
+      "stops": [
+        [
+          0,
+          100
+        ]
+      ],
+      "length": 280,
+      "extra": [
+        [
+          0,
+          1,
+          350
+        ],
+        [
+          1,
+          0,
+          500
+        ]
+      ],
+      "home": [
+        280,
+        0
+      ],
+      "expected_m": 380,
+      "parquet_sha256": {
+        "walk_edges.parquet": "6a361f6088047fdfc6e4eed7680f2c1e798e34e2926d25f1d24ca226a517590d",
+        "walk_nodes.parquet": "baf9d2aa4e343da4274dbae8f9fd6153c22879bdd4e94bd8937bea3deea89f13"
+      },
+      "before": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 380.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "zero_snap_exact_400",
+      "stops": [
+        [
+          0,
+          0
+        ]
+      ],
+      "length": 400,
+      "home": [
+        400,
+        0
+      ],
+      "expected_m": 400,
+      "parquet_sha256": {
+        "walk_edges.parquet": "1dc5f605af00ef2fea2cad76361bc45a78e0b478078c49f934fb6aeb4d76585b",
+        "walk_nodes.parquet": "43de0ee7bfd00f8fa0fadcac145cdbe50408dea5872a7b85dfa3d411c0de0854"
+      },
+      "before": {
+        "walk_m": 400.001,
+        "covered": false,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 400.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "zero_snap_outside_400",
+      "stops": [
+        [
+          0,
+          0
+        ]
+      ],
+      "length": 400.001,
+      "home": [
+        400.001,
+        0
+      ],
+      "expected_m": 400.001,
+      "parquet_sha256": {
+        "walk_edges.parquet": "bebf53fe304385e34090919a0ee6d9fc1a442ee149ee20e914ec1ba78350f444",
+        "walk_nodes.parquet": "7801226e22f3e20591fe2113f045fda97130a8e53d74e2e40690da03585eaaea"
+      },
+      "before": {
+        "walk_m": 400.00199999999995,
+        "covered": false,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 400.001,
+        "covered": false,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "two_distinct_source_nodes",
+      "stops": [
+        [
+          0,
+          100
+        ],
+        [
+          280,
+          30
+        ]
+      ],
+      "length": 280,
+      "home": [
+        0,
+        0
+      ],
+      "expected_m": 100,
+      "parquet_sha256": {
+        "walk_edges.parquet": "531e505bba8432502aa030cbc150bb89ed35d3127bfcfe1a1608ba29b5c03a8a",
+        "walk_nodes.parquet": "baf9d2aa4e343da4274dbae8f9fd6153c22879bdd4e94bd8937bea3deea89f13"
+      },
+      "before": {
+        "walk_m": 100.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 100.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "parcel_access_is_counted",
+      "stops": [
+        [
+          0,
+          100
+        ]
+      ],
+      "length": 280,
+      "home": [
+        280,
+        20
+      ],
+      "expected_m": 400,
+      "parquet_sha256": {
+        "walk_edges.parquet": "531e505bba8432502aa030cbc150bb89ed35d3127bfcfe1a1608ba29b5c03a8a",
+        "walk_nodes.parquet": "baf9d2aa4e343da4274dbae8f9fd6153c22879bdd4e94bd8937bea3deea89f13"
+      },
+      "before": {
+        "walk_m": 400.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 400.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "stop_snap_exact_150",
+      "stops": [
+        [
+          0,
+          150
+        ]
+      ],
+      "length": 250,
+      "home": [
+        250,
+        0
+      ],
+      "expected_m": 400,
+      "parquet_sha256": {
+        "walk_edges.parquet": "5a1a7d04adee454cfac81aa47afe829be40ca07dc071956b8b21ce7f0809a1ff",
+        "walk_nodes.parquet": "3bcf9824fa7b9d074a8cd90c7f45cb419000dec292affc8d78b990ea69e377d3"
+      },
+      "before": {
+        "walk_m": 400.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": 400.0,
+        "covered": true,
+        "unsnapped_stops": 0
+      }
+    },
+    {
+      "name": "stop_snap_over_150",
+      "stops": [
+        [
+          0,
+          150.001
+        ]
+      ],
+      "length": 250,
+      "home": [
+        250,
+        0
+      ],
+      "expected_m": null,
+      "expected_unsnapped": 1,
+      "parquet_sha256": {
+        "walk_edges.parquet": "5a1a7d04adee454cfac81aa47afe829be40ca07dc071956b8b21ce7f0809a1ff",
+        "walk_nodes.parquet": "3bcf9824fa7b9d074a8cd90c7f45cb419000dec292affc8d78b990ea69e377d3"
+      },
+      "before": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 1
+      },
+      "after": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 1
+      }
+    },
+    {
+      "name": "small_component_ignored",
+      "stops": [
+        [
+          5000,
+          0
+        ]
+      ],
+      "length": 280,
+      "home": [
+        5001,
+        0
+      ],
+      "small": true,
+      "expected_m": null,
+      "expected_unsnapped": 1,
+      "parquet_sha256": {
+        "walk_edges.parquet": "12514f4a04e8696cf86dacc7595a6c9d1888789865bbea4ec812ec08db24d516",
+        "walk_nodes.parquet": "50b6c15c732f1911966ef8b9d4c706b9222666efe1cf3902e321c1fe3e01fe9f"
+      },
+      "before": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 1
+      },
+      "after": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 1
+      }
+    },
+    {
+      "name": "no_source_stops",
+      "stops": [],
+      "length": 280,
+      "home": [
+        280,
+        0
+      ],
+      "expected_m": null,
+      "parquet_sha256": {
+        "walk_edges.parquet": "531e505bba8432502aa030cbc150bb89ed35d3127bfcfe1a1608ba29b5c03a8a",
+        "walk_nodes.parquet": "baf9d2aa4e343da4274dbae8f9fd6153c22879bdd4e94bd8937bea3deea89f13"
+      },
+      "before": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 0
+      },
+      "after": {
+        "walk_m": null,
+        "covered": false,
+        "unsnapped_stops": 0
+      }
+    }
+  ],
+  "offline_gate": {
+    "pytest_cases": 113,
+    "pytest_skipped": 0,
+    "mutations_detected": 33,
+    "mutations_total": 33,
+    "mutation_escapes": 0,
+    "source_test_copy_files_byte_equal_after_restoration": 18,
+    "base_module_regression_cases": 19,
+    "base_module_assertion_failures": 11,
+    "base_module_passed": 8,
+    "base_module_errors": 0,
+    "base_module_skipped": 0,
+    "historical_output_files_byte_preserved": 24
+  }
+}
