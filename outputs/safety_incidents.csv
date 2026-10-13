@@ -1,0 +1,7 @@
+type,incidents,on_bus_route,share_on_bus_route,share_lo,share_hi,non_expressway_incidents,non_expressway_on_bus_route,non_expressway_share,non_expressway_share_lo,non_expressway_share_hi
+Accident,1,0,0.0,0.0,0.975,0,0,,,
+Heavy Traffic,2,0,0.0,0.0,0.8419,2,0,0.0,0.0,0.8419
+Obstacle,1,0,0.0,0.0,0.975,0,0,,,
+Roadwork,32,1,0.0312,0.0008,0.1622,7,0,0.0,0.0,0.4096
+Unattended Vehicle,1,0,0.0,0.0,0.975,0,0,,,
+Vehicle breakdown,13,0,0.0,0.0,0.2471,2,0,0.0,0.0,0.8419

@@ -9,3 +9,4 @@ outputs/priority_screen_smoke_metadata.json
 .venv/
 data/processed/*.parquet
 data/processed/*.npy
+data/processed/speed_cache/

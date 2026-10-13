@@ -1,0 +1,19 @@
+{
+  "pairs_with_common_service_share_of_rides": 0.9957295741113072,
+  "route_to_straight_ratio_median": 1.4127474105194833,
+  "annual_rides": 1452041365.8360677,
+  "rides_per_day_by_type": {
+    "WEEKDAY": 4243666.821739129,
+    "WEEKENDS/HOLIDAY": 3393692.9261363638
+  },
+  "day_counts_2026": {
+    "WEEKDAY": 251,
+    "WEEKENDS/HOLIDAY": 114
+  },
+  "fare_km_quantiles": {
+    "0.5": 2.1999999999999997,
+    "0.9": 8.2
+  },
+  "weekday_bus_km": 910617.8224488986,
+  "services_with_bus_km": 786
+}

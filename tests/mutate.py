@@ -13,6 +13,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 TESTS = ROOT / "tests"
+# New mutants run only the test files that cover their module (a kill there is a kill in the full suite;
+# an escape is reported even if another file might have caught it).
+PD = ["test_priority_days.py"]
+CO = ["test_collect.py"]
+FC = ["test_forecast.py"]
+SF = ["test_safety.py"]
+FI = ["test_finance.py"]
 MUTANTS = [
     ("corridors.py", "sum(nums[:2]) / len(nums[:2])", "max(nums[:2])"),
     ("corridors.py", "nums = [n for n in nums if n > 0]", "nums = nums"),
@@ -68,6 +75,73 @@ MUTANTS = [
      'paths.groupby(["u", "v"], as_index=False)["length_m"].first()'),
     # Sparse zero-weight access arcs are valid: an epsilon loses the 400 m edge.
     ("coverage_walk.py", 'snap_min.to_numpy()])', 'np.maximum(snap_min.to_numpy(), 1e-3)])'),
+    # Multi-morning bus priority (priority_days.py).
+    ("priority_days.py", "need = math.ceil(len(daily) / 2)", "need = 1", PD),
+    ("priority_days.py", "med = nanmedian(stack)", "med = np.nanmean(stack, axis=0)", PD),
+    ("priority_days.py", "(mins >= a) | (mins <= b)", "(mins >= a) & (mins <= b)", PD),
+    ("priority_days.py", "if x.weekday() < 5 and x.date() not in holidays", "if x.date() not in holidays", PD),
+    ("priority_days.py", "x.weekday() < 5 and x.date() not in holidays and ", "x.weekday() < 5 and ", PD),
+    ("priority_days.py", "and n >= min_snapshots]", "and n >= 1]", PD),
+    ("priority_days.py", "covered = (den > 0) & (den >= priority.MIN_VALID_COVERAGE * link_km * 1000)",
+     "covered = den > 0", PD),
+    ("priority_days.py", "return len(ta & tb) / k", "return len(ta & tb) / len(ta | tb)", PD),
+    ("priority_days.py", "ta = set(a[common].sort_values(ascending=False).index[:k])",
+     "ta = set(a[common].sort_values(ascending=True).index[:k])", PD),
+    ("priority_days.py", "period_median(speeds[am & (dates == d)], min_snapshots)",
+     "period_median(speeds[dates == d], min_snapshots)", PD),
+    ("priority_days.py", "s.sort_values(ascending=False).index[:k])] += 1",
+     "s.sort_values(ascending=False).index[:k + 1])] += 1", PD),
+    # Collector and speed cache.
+    ("collect.py", "if len(p) < PAGE:", "if not p:", CO),
+    ("collect.py", "    os.replace(tmp, path)\n", "", CO),
+    ("collect.py", "(int(epoch // every) + 1) * every", "round(epoch / every) * every", CO),
+    ("speed_cache.py", "np.where(band >= 8, lo + 5, (lo + hi + 1) / 2)", "np.where(band >= 8, lo + 4.5, (lo + hi + 1) / 2)",
+     CO),
+    ("speed_cache.py", "out[pos[pos_ok]] = v[pos_ok]", "out[pos[pos_ok]] = v[:pos_ok.sum()]", CO),
+    ("speed_cache.py", 'if str(z["signature"]) == sig:', "if True:", CO),
+    # Forecasting.
+    ("forecast.py", "if off[i] <= max_offset_min and off[i] < best[pos[i]]:", "if off[i] <= max_offset_min:", FC),
+    ("forecast.py", "present[t - lags + 1:t + 1].all()", "present[t]", FC),
+    ("forecast.py", "    idx = idx[first == last]\n", "", FC),
+    ("forecast.py", "before[-val_days:]", "before[:val_days]", FC),
+    ("forecast.py", "table = np.where(np.isfinite(by_type), by_type, by_tod[None])", "table = by_tod[None] + 0 * by_type",
+     FC),
+    ("forecast.py", "ok = np.isfinite(true) & np.isfinite(pred)", "ok = np.isfinite(pred)", FC),
+    ("forecast.py", '"mae_lo": float(np.percentile(maes, 2.5))', '"mae_lo": float(np.percentile(maes, 5))', FC),
+    ("forecast.py", "(starts[:, :, None] + np.arange(block)[None, None])", "(starts[:, :, None] + 0 * np.arange(block)[None, None])",
+     FC),
+    ("forecast.py", "for a, b in ((src, dst), (dst, src)):", "for a, b in ((src, dst),):", FC),
+    ("forecast.py", "if np.hypot(*(end[j] - start[i])) < tol_m:", "if False:", FC),
+    ("forecast.py", 'cols[f"lag{k}"] = X[idx - k].ravel()', 'cols[f"lag{k}"] = X[idx + k].ravel()', FC),
+    ("forecast_gnn.py", "out.append(last[i:i + batch, :, None] + d * scale)", "out.append(d * scale)", FC),
+    ("forecast_gnn.py", "val = 1.0 / deg[src]", "val = np.ones(len(src), dtype=np.float32)", FC),
+    ("forecast_gnn.py", "x = torch.sparse.mm(a, x) if a.is_sparse else a @ x", "x = x", FC),
+    # Safety brief.
+    ("safety.py", "stats.chi2.ppf(alpha / 2, 2 * k) / 2", "stats.chi2.ppf(alpha / 2, 2 * k + 2) / 2", SF),
+    ("safety.py", "scale = e2 / e1", "scale = e1 / e2", SF),
+    ("safety.py", 'first_seen=("polled_at", "min")', 'first_seen=("polled_at", "max")', SF),
+    ("safety.py", "t = np.clip(((p - a) * ab).sum(1) / np.where(L2 > 0, L2, 1), 0, 1)",
+     "t = ((p - a) * ab).sum(1) / np.where(L2 > 0, L2, 1)", SF),
+    ("safety.py", "float(seg_len[on_bus].sum() / seg_len.sum())", "float(on_bus.mean())", SF),
+    ("safety.py", "ok = np.isfinite(dist) & (dist <= SNAP_M)", "ok = np.isfinite(dist)", SF),
+    # Finance model and workbook.
+    ("finance.py", "idx = np.ceil(np.round(km - 3.2, 1) - 1e-9)", "idx = np.floor(np.round(km - 3.2, 1))", FI),
+    ("finance.py", "_, _, cls, km = min(cand)", "_, _, cls, km = max(cand)", FI),
+    ("finance.py", "    if last <= first:\n        last += 1440  # last bus after midnight\n", "", FI),
+    ("finance.py", "d.weekday() < 5 and d not in HOLIDAYS_2026", "d.weekday() < 5", FI),
+    ("finance_model.py", "comb = np.clip(np.ceil(np.round(km - 3.2, 1) - 1e-9), 0, N_BANDS - 1)",
+     "comb = np.clip(np.floor(np.round(km - 3.2, 1)), 0, N_BANDS - 1)", FI),
+    ("finance_model.py", 'senior * (c["senior"] + c["pwd"]) / c["senior"]', "senior", FI),
+    ("finance_model.py", 'factor = 1 - a["transfer_share"] * rebate / mean_adult', 'factor = 1 - a["transfer_share"]', FI),
+    ("finance_model.py", "level = full * (1 + 95 / 365 * step)", "level = full * (1 + step)", FI),
+    ("finance_model.py", "more = float((rides * (adult < f)).sum() / rides.sum())",
+     "more = float((rides * (adult > f)).sum() / rides.sum())", FI),
+    ("finance_workbook.py", '"=1-transfer_share*rebate/mean_adult"', '"=1-transfer_share"', FI),
+    ("finance_workbook.py", "{comb}+1))", "{comb}+2))", FI),
+    ("finance_workbook.py", 'ws.cell(rr, 2, f"=H{rr - 1}*(1+95/365*{step})")', 'ws.cell(rr, 2, f"=H{rr - 1}*(1+{step})")', FI),
+    ("finance_workbook.py", '"=fy25_fare*1000000+old_days/365*fre2025_inc*bus_share"',
+     '"=fy25_fare*1000000+old_days/365*fre2025_inc"', FI),
+    ("finance_workbook.py", "feeder_now = f\"({blend_feeder('now')})\" if i == 0 else \"0\"", 'feeder_now = "0"', FI),
 ]
 
 
@@ -77,8 +151,8 @@ class HarnessError(RuntimeError):
 
 def preflight():
     """Validate every target before any write; retain exact bytes for restoration."""
-    originals = {name: (SRC / name).read_bytes() for name, _, _ in MUTANTS}
-    for name, old, new in MUTANTS:
+    originals = {m[0]: (SRC / m[0]).read_bytes() for m in MUTANTS}
+    for name, old, new, *_ in MUTANTS:
         # Replacement anchors use LF independently of the checkout's line endings.
         source = originals[name].decode("utf-8").replace("\r\n", "\n")
         if source.count(old) != 1 or old == new:
@@ -104,7 +178,7 @@ def child_environment(cache):
 def run_child(args, env):
     try:
         return subprocess.run([sys.executable, "-B", *args], cwd=ROOT, env=env, capture_output=True,
-                              text=True, encoding="utf-8", errors="replace", timeout=120)
+                              text=True, encoding="utf-8", errors="replace", timeout=900)
     except subprocess.TimeoutExpired as exc:
         raise HarnessError("child process timed out; this is not a test kill") from exc
 
@@ -113,12 +187,13 @@ def diagnostics(result):
     return (result.stdout + "\n" + result.stderr).strip()[-3500:]
 
 
-def pytest_result(directory, env, *, stop_early):
+def pytest_result(directory, env, *, stop_early, files=None):
     report = directory / "pytest.xml"
     args = ["-m", "pytest", "-q", "-p", "no:cacheprovider", f"--junitxml={report}"]
     if stop_early:
         args.append("-x")
-    result = run_child([*args, str(TESTS)], env)
+    targets = [str(TESTS / f) for f in files] if files else [str(TESTS)]
+    result = run_child([*args, *targets], env)
     if result.returncode not in (0, 1) or not report.is_file():
         raise HarnessError(f"pytest infrastructure/collection failure (exit {result.returncode})\n{diagnostics(result)}")
     try:
@@ -146,7 +221,7 @@ def main():
         if failed:
             raise HarnessError(f"unmodified full suite failed; no mutations were written\n{diagnostics(result)}")
         print(f"baseline: {count} tests passed", flush=True)
-        for index, (name, old, new) in enumerate(MUTANTS, 1):
+        for index, (name, old, new, *files) in enumerate(MUTANTS, 1):
             # Refuse to overwrite changes made after preflight (e.g. another reviewer).
             for filename, original in originals.items():
                 if (SRC / filename).read_bytes() != original:
@@ -170,7 +245,7 @@ def main():
                 imported = run_child(["-c", check], env)
                 if imported.returncode != 0:
                     raise HarnessError(f"mutant failed compilation/import in {name}; not a kill\n{diagnostics(imported)}")
-                failed, _, result = pytest_result(case, env, stop_early=True)
+                failed, _, result = pytest_result(case, env, stop_early=True, files=files[0] if files else None)
             finally:
                 path.write_bytes(original)
             killed += failed

@@ -1,5 +1,5 @@
 {
-  "mode": "weekday_am_peak",
+  "mode": "weekday_am_peak_multi_morning",
   "snapshot_timezone": "Asia/Singapore",
   "peak": {
     "min_snapshot": "2026-09-28T07:47:00",
@@ -11,8 +11,15 @@
     "max_snapshot": "2026-10-03T00:06:00",
     "n_snapshots": 50
   },
+  "mornings": [
+    {
+      "date": "2026-09-28",
+      "n_snapshots": 6
+    }
+  ],
   "min_snapshots": 4,
+  "min_mornings_per_link": 1,
   "min_valid_coverage": 0.5,
   "eligible_links": 3378,
-  "csv_sha256": "768beba2dbbbe7be9d37eef60906e648eba94ca522a97fcb952c7b9aa856bd84"
+  "csv_sha256": "d68c31a56e141a56639bec4a303fc53423adab8047c18941e8b8d0db906e9686"
 }

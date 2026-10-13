@@ -1,0 +1,41 @@
+{
+  "comparisons": {
+    "buses_involved_per_bus_2025_vs_2017_2019": {
+      "ratio": 0.9743351300784033,
+      "lo": 0.8757372429554502,
+      "hi": 1.0824261792150067
+    },
+    "fatal_involvements_per_bus_2025_vs_2022_2024": {
+      "ratio": 1.258843030505794,
+      "lo": 0.6820768809683755,
+      "hi": 2.234760120050129
+    },
+    "occupant_injuries_per_ride_2025_vs_2017_2019": {
+      "ratio": 0.8991706028935917,
+      "lo": 0.7833148891743716,
+      "hi": 1.0294363385851333
+    },
+    "public_serious_collisions_per_ride_2024_vs_2022": {
+      "ratio": 0.8712844041711443,
+      "lo": 0.707917042433841,
+      "hi": 1.0721614935099872
+    }
+  },
+  "implied_exposure": {
+    "implied_bus_km_per_day_2017": 1192052.9801324503,
+    "note": "Jan-May 2017 public bus accidents divided by the rounded 2017 yearly rate of about 0.15 per 100,000 bus-km; a rough figure, since the rate is rounded and is a full-year average.",
+    "bus_km_2014": 901700.0
+  },
+  "incident_polls": 70,
+  "incident_window": {
+    "first_poll": "2026-10-13T21:44:30",
+    "last_poll": "2026-10-14T00:00:00"
+  },
+  "distinct_incidents": 50,
+  "matched_within_m": 30.0,
+  "matched_incidents": 50,
+  "network_baseline": {
+    "bus_route_share_of_road_length": 0.22123308712968578,
+    "bus_route_share_of_non_expressway_length": 0.23194378806823351
+  }
+}

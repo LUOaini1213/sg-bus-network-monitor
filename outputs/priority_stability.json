@@ -1,0 +1,16 @@
+{
+  "summary": {
+    "mornings": 1,
+    "median_pairwise_top20_overlap": null,
+    "median_pairwise_kendall_tau": null,
+    "combined_top20_in_daily_top20_on_half_or_more_mornings": 20
+  },
+  "pairs": [],
+  "vs_combined": [
+    {
+      "morning": "2026-09-28",
+      "top20_overlap_with_combined": 1.0,
+      "kendall_tau_with_combined": 0.9999999999999998
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+ "lta_avg_daily_bus_ridership_2025": 3841000,
+ "lta_ridership_note": "LTA, Public Transport Ridership - Average Daily Ridership 2015-2025 (bus 2025: 3,841 thousand); same series on data.gov.sg d_ba615ec4cc5d9f5b7800ad82057f36f1",
+ "fre2025_bus_tel_increase": 62300000,
+ "fre2025_note": "PTC FRE 2025 Annex A: fare revenues for bus and TEL collected by LTA will increase by $62.3 million",
+ "fre2026_bus_tel_increase": 97100000,
+ "fre2026_note": "PTC FRE 2026 Annex A: bus and TEL fare revenue collected by LTA increases by $97.1 million",
+ "fy25_days_at_old_fares": 270,
+ "tel_fare_revenue_fy25": 76000000,
+ "tel_note": "LTA FY2025/26 financial statements: Rail Contracting (TEL/JRL) fare revenue $76m",
+ "commuter_rides_per_month": 44,
+ "adult_pass": 122.0,
+ "ridership_growth": 0.012465671544231283,
+ "ridership_growth_note": "Average 2023-2025 growth of LTA average daily bus ridership (3,747k to 3,841k)",
+ "cost_growth": 0.01943815999475551,
+ "cost_growth_note": "Average FY2020/21-FY2025/26 growth of Bus Contracting total operating expenditure (S$1,821m to S$2,005m)",
+ "later_fre": 0.0,
+ "concession_change": -0.1,
+ "scenario_changes": [
+  -0.05,
+  0.0,
+  0.05,
+  0.07,
+  0.1
+ ],
+ "scenario_elasticities": [
+  0.0,
+  -0.2,
+  -0.5
+ ],
+ "elasticity_note": "Litman (VTPI), Transit Price Elasticities and Cross-Elasticities (17 June 2025), Table 15: overall short-run -0.2 to -0.5. Generic values, not measured for Singapore.",
+ "sources": [
+  {
+   "item": "Share of concession cards: senior citizens / students",
+   "publisher": "Ministry of Transport (MOT)",
+   "source_title": "Written Reply by Minister for Transport S Iswaran to PQ on Number and Profile of Commuters with Issued Public Transport Concessions Cards (26 Jul 2021)",
+   "url": "https://www.mot.gov.sg/news-resources/newsroom/written-reply-by-minister-for-transport-s-iswaran-to-parliamentary-question-on-number-and-profile-of-commuters-with-issued-public-transport-concessions-cards/",
+   "quote": "The majority of the concession cardholders are senior citizens and students, who account for 47% and 31% of the cards respectively.",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Share of concession cards: child / adult monthly travel cards / full-time NSF",
+   "publisher": "Ministry of Transport (MOT)",
+   "source_title": "Written Reply by Minister for Transport S Iswaran to PQ on Number and Profile of Commuters with Issued Public Transport Concessions Cards (26 Jul 2021)",
+   "url": "https://www.mot.gov.sg/news-resources/newsroom/written-reply-by-minister-for-transport-s-iswaran-to-parliamentary-question-on-number-and-profile-of-commuters-with-issued-public-transport-concessions-cards/",
+   "quote": "Child concession cards make up 6% of the cardholders while adult monthly travel cards and full-time NSF concession cards each make up 3% of the concession cards.",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Share of concession cards: Workfare Transport Concession / Persons with Disabilities",
+   "publisher": "Ministry of Transport (MOT)",
+   "source_title": "Written Reply by Minister for Transport S Iswaran to PQ on Number and Profile of Commuters with Issued Public Transport Concessions Cards (26 Jul 2021)",
+   "url": "https://www.mot.gov.sg/news-resources/newsroom/written-reply-by-minister-for-transport-s-iswaran-to-parliamentary-question-on-number-and-profile-of-commuters-with-issued-public-transport-concessions-cards/",
+   "quote": "The remaining 9% and 1% of cardholders are beneficiaries of the Workfare Transport Concession Scheme and Persons with Disabilities Concession Scheme respectively.",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Daily bus and train trips on senior citizen concession cards (bus / train)",
+   "publisher": "Ministry of Transport (MOT)",
+   "source_title": "Written reply by Minister Khaw Boon Wan on the yearly number of train and bus trips taken by senior citizens from 2015 (3 Feb 2020)",
+   "url": "https://www.mot.gov.sg/news-resources/newsroom/written-reply-by-minister-for-transport-khaw-boon-wan-to-parliamentary-question-on-number-of-train-and-bus-trips-undertaken-by-singapore-senior-citizens-on-yearly-basis-from-2015-by-age/",
+   "quote": "Senior Citizen Concession Cards Bus Train 2015 548,000 205,000 2016 597,000 238,000 2017 650,000 267,000 2018 690,000 296,000 2019 743,000 327,000",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Monthly pass users (all types)",
+   "publisher": "Public Transport Council (PTC)",
+   "source_title": "Outcome of Fare Review Exercise (FRE) 2026 (news release, 29 Sep 2026)",
+   "url": "https://www.ptc.gov.sg/media-centre/newsroom/fare-review-exercise-2026/",
+   "quote": "There are currently about 126,000 monthly pass users.",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Share of journeys paid in cash",
+   "publisher": "Public Transport Council (PTC)",
+   "source_title": "Fare Review Exercise 2025 (news release, 14 Oct 2025)",
+   "url": "https://www.ptc.gov.sg/media-centre/newsroom/fare-review-exercise-2025/",
+   "quote": "Less than 1% of all public transport journeys were paid in cash",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Smart-card trips vs linked journeys, typical weekday (bus+rail combined)",
+   "publisher": "arXiv (academic preprint)",
+   "source_title": "DeepLogit: A sequentially constrained explainable deep learning modeling approach for transport policy analysis (arXiv:2509.13633, preprint)",
+   "url": "https://arxiv.org/pdf/2509.13633",
+   "quote": "which roughly has 6.2 million trips that translates into 4.5 million journeys.",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Transit ridership w.r.t. transit fares, overall (VTPI Table 15 recommended values)",
+   "publisher": "Victoria Transport Policy Institute (VTPI)",
+   "source_title": "Transit Price Elasticities and Cross-Elasticities (Todd Litman, version dated 17 June 2025; orig. Journal of Public Transportation 7(2), 2004)",
+   "url": "https://www.vtpi.org/tranelas.pdf",
+   "quote": "Transit ridership WRT transit fares Overall –0.2 to –0.5 –0.6 to –0.9",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "20th percentile monthly household market income, resident households",
+   "publisher": "Singapore Department of Statistics (SingStat)",
+   "source_title": "SingStat Table Builder C030012: Monthly Household Market Income Among Resident Households at Selected Percentiles, 2015 - 2025",
+   "url": "https://tablebuilder.singstat.gov.sg/api/table/tabledata/C030012",
+   "quote": "{\"key\":\"2024\",\"value\":\"3994\"},{\"key\":\"2025\",\"value\":\"4329\"}",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "PTC Public Transport Affordability Indicator: lower-income (2nd decile) households",
+   "publisher": "Public Transport Council (PTC)",
+   "source_title": "Outcome of Fare Review Exercise (FRE) 2026 (news release, 29 Sep 2026)",
+   "url": "https://www.ptc.gov.sg/media-centre/newsroom/fare-review-exercise-2026/",
+   "quote": "The proportion of household income spent on public transport by lower income households has held steady at 2.4%.",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Distance fares principle",
+   "publisher": "Public Transport Council (PTC)",
+   "source_title": "Distance fares & transfer rules (web page, last updated 23 Jul 2026)",
+   "url": "https://www.ptc.gov.sg/fares/distance-fares-and-transfer-rules/",
+   "quote": "charging fares based on the total distance travelled in one journey, regardless of the mode of transport used and whether they are travelling direct or making transfers.",
+   "accessed": "2026-10-13"
+  },
+  {
+   "item": "Transfer window bus<->rail and bus<->bus",
+   "publisher": "Public Transport Council (PTC)",
+   "source_title": "Distance fares & transfer rules (web page, last updated 23 Jul 2026)",
+   "url": "https://www.ptc.gov.sg/fares/distance-fares-and-transfer-rules/",
+   "quote": "The maximum duration before you are charged is 45 minutes for transfers between train station and bus service, or between different bus services.",
+   "accessed": "2026-10-13"
+  }
+ ],
+ "derivation": {
+  "senior_bus_trips_2019": 743000,
+  "bus_rides_2019": 4099000,
+  "senior_note": "MOT written reply: bus trips a day on Senior Citizen Concession Cards, 743,000 in 2019",
+  "ridership_note": "LTA, Public Transport Ridership - Average Daily Ridership 2015-2025: bus 4,099 thousand in 2019",
+  "card_shares": {
+   "senior": 0.47,
+   "pwd": 0.01,
+   "student": 0.31,
+   "workfare": 0.09,
+   "child": 0.06
+  },
+  "cards_note": "MOT written reply (cards valid at end June 2021): seniors 47%, students 31%, child 6%, adult monthly travel cards 3%, NSF 3%, Workfare 9%, PwD 1%",
+  "trips_2018": 6200000,
+  "journeys_2018": 4500000,
+  "journeys_note": "arXiv 2509.13633 (academic preprint): a typical weekday in February 2018 had about 6.2 million trips, i.e. 4.5 million journeys (bus and rail)"
+ },
+ "income_p20": 4329,
+ "income_note": "SingStat table C030012: 20th percentile monthly household market income, resident households, 2025"
+}

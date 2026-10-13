@@ -221,9 +221,14 @@ def priority_section():
             first = html.escape(sample["min_snapshot"].replace("T", " ")[:16])
             last = html.escape(sample["max_snapshot"].replace("T", " ")[:16])
             return f"{sample['n_snapshots']} snapshots, {first} to {last}"
-        note = (f"<p class=note>Observed periods (Singapore time): weekday AM — {period('peak')}; "
+        days = meta.get("mornings") or []
+        mornings = (f"{len(days)} weekday morning{'s' if len(days) != 1 else ''} "
+                    f"({html.escape(', '.join(d['date'] for d in days))}), ") if days else ""
+        note = (f"<p class=note>Observed periods (Singapore time): weekday AM — {mornings}{period('peak')}; "
                 f"night — {period('night')}. Each eligible link needs at least {meta['min_snapshots']} "
-                "valid snapshots in each period, each covering at least half its length.</p>")
+                "valid snapshots in each period, each covering at least half its length"
+                + (f"; a link's AM speed is the median of its daily medians and needs at least "
+                   f"{meta['min_mornings_per_link']} mornings" if days else "") + ".</p>")
     else:
         note = "<p class=note>The observation period is unavailable for this result file.</p>"
     if p.empty:

@@ -180,11 +180,14 @@ if __name__ == "__main__":
     print(f"{len(cl):,} bus links (<= {MAX_LINK_KM} km); {cl.matched_m.notna().sum():,} matched to speed-band segments; "
           f"median coverage {cl.match_ratio.median():.0%}")
     any_window = "--any" in sys.argv  # smoke test on whatever snapshots exist
-    peak_snaps = load_snapshots((dt.time(0, 0), dt.time(23, 59)) if any_window else AM, not any_window)
-    ref_snaps = load_snapshots(NIGHT, False)
-    ok, metadata = write_screen(m, cl, peak_snaps, ref_snaps, any_window=any_window)
-    print(f"peak snapshots: {metadata['peak']['n_snapshots']}, night snapshots: {metadata['night']['n_snapshots']}; "
-          f"eligible links: {metadata['eligible_links']} (need {metadata['min_snapshots']} covered snapshots per period)")
     con.execute("create or replace table speedband_match as select * from m")
-    print(ok.head(15)[["from_stop", "to_stop", "services", "AM_Peak_bph", "link_km", "v_peak", "v_ref",
-                       "bus_h_lost_per_h"]].round(2).to_string(index=False))
+    con.close()
+    if any_window:
+        peak_snaps = load_snapshots((dt.time(0, 0), dt.time(23, 59)), False)
+        ref_snaps = load_snapshots(NIGHT, False)
+        ok, metadata = write_screen(m, cl, peak_snaps, ref_snaps, any_window=True)
+        print(f"smoke: {metadata['peak']['n_snapshots']} snapshots, eligible links: {metadata['eligible_links']}")
+    else:
+        # The formal screening runs morning by morning over every weekday AM peak in the archive.
+        import priority_days
+        priority_days.main()
