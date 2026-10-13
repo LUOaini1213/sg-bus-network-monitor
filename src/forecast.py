@@ -5,8 +5,8 @@ least BUS_BPH scheduled AM-peak buses an hour. Edges join a segment to the segme
 
 Time: snapshots are put on a STEP_MIN-minute grid (each slot keeps the snapshot closest to the slot time, within
 MAX_OFFSET_MIN). The older archive was sampled about every 18-20 minutes and the collector from 13 October every
-5, then (from 14 October 00:50, because of DataMall's hourly quota) every 10 minutes, so a 20-minute grid is the
-finest step all of it shares.
+5, then 10, and from 14 October 02:15 (DataMall's call quota) every 15 minutes, so a 20-minute grid is the
+finest step all of it fills.
 
 Task: from the last LAGS slots (one hour) predict each segment's speed 1, 2 and 3 slots ahead (20/40/60 min).
 A sample needs all input slots and the target slot present; segments with a missing value (band 0) at the target

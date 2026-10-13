@@ -4,12 +4,13 @@
     python src/collect.py status                        # pid, last snapshot, last incident poll
     python src/collect.py stop                          # asks the running collector to exit (within ~10 s)
 
-Speed bands: one snapshot every --speed-every seconds (default 600), written
+Speed bands: one snapshot every --speed-every seconds (default 900), written
 atomically to data/raw/datamall/speedbands/sb_YYYYMMDD_HHMM.csv.gz in the same format as the older 15-minute
 sampler. A snapshot whose row count differs from the expected network size is still kept, and logged.
-A full snapshot takes 288 paged calls. DataMall enforces an hourly call quota (in October 2026 pulls failed with
-"Rate limit quota violation" after about 2,000 calls in a clock hour), so 5-minute snapshots (3,456 calls an hour)
-are not sustainable; 10 minutes (1,728 calls) is. A quota fault is not retried.
+A full snapshot takes 288 paged calls, and DataMall enforces a call quota whose window is not published. On 13-14
+October 2026 pulls failed with "Rate limit quota violation" after 5-7 snapshots in an hour at 5- and 10-minute
+cadences (1,440-2,016 calls), while incident polls kept working. 15 minutes (1,152 calls an hour) is the cadence
+the earlier sampler ran at without a failure. A quota fault is not retried.
 Traffic incidents: one poll every --incident-every seconds (default 120), appended as one JSON line per poll to
 data/raw/datamall/incidents/inc_YYYYMMDD.jsonl. DataMall only serves the incidents that are current, so this
 archive starts on the day the collector starts.
@@ -180,7 +181,7 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
     r.add_argument("--until", required=True, help="end time YYYYmmddHHMM (local)")
-    r.add_argument("--speed-every", type=int, default=600)
+    r.add_argument("--speed-every", type=int, default=900)
     r.add_argument("--incident-every", type=int, default=120)
     r.add_argument("--expected-links", type=int, default=143787)
     sub.add_parser("status")

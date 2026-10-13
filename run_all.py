@@ -2,7 +2,7 @@
   python src/fetch_public.py            # OSM stops, URA boundaries and land use, SingStat population (no key)
   LTA_KEY=... python src/datamall.py static pv   # DataMall routes, services, stops, passenger volume
   LTA_KEY=... python src/datamall.py od 202608 202607   # origin-destination volumes
-  LTA_KEY=... python src/collect.py run --until 202610302359   # speed bands every 10 min, incidents every 2 min
+  LTA_KEY=... python src/collect.py run --until 202610302359   # speed bands every 15 min, incidents every 2 min
   python src/fetch_safety.py            # SingStat / data.gov.sg safety and ridership tables (no key)
   python src/forecast.py                # speed-band forecasts (PyTorch; separate because it trains models)
   curl -o data/raw/Singapore.osm.gz https://download.bbbike.org/osm/bbbike/Singapore/Singapore.osm.gz
