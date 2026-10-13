@@ -93,6 +93,7 @@ MUTANTS = [
      "s.sort_values(ascending=False).index[:k + 1])] += 1", PD),
     # Collector and speed cache.
     ("collect.py", "if len(p) < PAGE:", "if not p:", CO),
+    ("collect.py", 'if r.status_code >= 400 and "quota" in r.text.lower():', "if False:", CO),
     ("collect.py", "    os.replace(tmp, path)\n", "", CO),
     ("collect.py", "(int(epoch // every) + 1) * every", "round(epoch / every) * every", CO),
     ("speed_cache.py", "np.where(band >= 8, lo + 5, (lo + hi + 1) / 2)", "np.where(band >= 8, lo + 4.5, (lo + hi + 1) / 2)",

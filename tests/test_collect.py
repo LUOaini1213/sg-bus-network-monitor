@@ -30,6 +30,8 @@ class FakeSession:
         rows = [{"LinkID": base + i, "SpeedBand": 3, "MinimumSpeed": 20, "MaximumSpeed": 29} for i in range(n)]
 
         class R:
+            status_code, text = 200, ""
+
             def raise_for_status(self):
                 pass
 
@@ -104,3 +106,22 @@ def test_speed_cache_aligns_links_and_rebuilds_only_changed_days(tmp_path):
     t, _, k = speed_cache.load(cache=cache, links=[30, 10])
     assert len(t) == 3
     np.testing.assert_allclose(k[:, 1], [35.0, 5.0, 15.0])
+
+
+def test_quota_fault_is_not_retried():
+    class Quota:
+        calls = 0
+
+        def get(self, url, params, headers, timeout):
+            Quota.calls += 1
+
+            class R:
+                status_code = 500
+                text = '{"fault":{"faultstring":"Rate limit quota violation. Quota limit  exceeded."}}'
+
+                def raise_for_status(self):
+                    raise collect.requests.HTTPError("500")
+            return R()
+    with pytest.raises(collect.QuotaExceeded):
+        collect.get_page(Quota(), "k", "v4/TrafficSpeedBands", 0)
+    assert Quota.calls == 1

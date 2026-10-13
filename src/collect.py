@@ -4,9 +4,12 @@
     python src/collect.py status                        # pid, last snapshot, last incident poll
     python src/collect.py stop                          # asks the running collector to exit (within ~10 s)
 
-Speed bands: one snapshot every --speed-every seconds (default 300, the rate DataMall refreshes them), written
+Speed bands: one snapshot every --speed-every seconds (default 600), written
 atomically to data/raw/datamall/speedbands/sb_YYYYMMDD_HHMM.csv.gz in the same format as the older 15-minute
 sampler. A snapshot whose row count differs from the expected network size is still kept, and logged.
+A full snapshot takes 288 paged calls. DataMall enforces an hourly call quota (in October 2026 pulls failed with
+"Rate limit quota violation" after about 2,000 calls in a clock hour), so 5-minute snapshots (3,456 calls an hour)
+are not sustainable; 10 minutes (1,728 calls) is. A quota fault is not retried.
 Traffic incidents: one poll every --incident-every seconds (default 120), appended as one JSON line per poll to
 data/raw/datamall/incidents/inc_YYYYMMDD.jsonl. DataMall only serves the incidents that are current, so this
 archive starts on the day the collector starts.
@@ -45,11 +48,17 @@ def log(msg):
         f.write(line + "\n")
 
 
+class QuotaExceeded(RuntimeError):
+    """DataMall answered with its rate-limit fault; retrying only spends more of the quota."""
+
+
 def get_page(session, key, endpoint, skip, tries=4):
     for i in range(tries):
         try:
             r = session.get(f"{BASE}/{endpoint}", params={"$skip": skip},
                             headers={"AccountKey": key, "accept": "application/json"}, timeout=60)
+            if r.status_code >= 400 and "quota" in r.text.lower():
+                raise QuotaExceeded(f"rate-limit quota exceeded at $skip={skip}")
             r.raise_for_status()
             return r.json().get("value", [])
         except (requests.RequestException, ValueError):
@@ -171,7 +180,7 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
     r.add_argument("--until", required=True, help="end time YYYYmmddHHMM (local)")
-    r.add_argument("--speed-every", type=int, default=300)
+    r.add_argument("--speed-every", type=int, default=600)
     r.add_argument("--incident-every", type=int, default=120)
     r.add_argument("--expected-links", type=int, default=143787)
     sub.add_parser("status")

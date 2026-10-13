@@ -161,7 +161,7 @@ See [review evidence and reproduction details](docs/REVIEW_20261003.md).
 | Anomalies | `src/anomalies.py` | Evidence table per flagged stop: monthly series, service changes (renumbering aware), OD changes, category, and verified events from `data/reference/network_events_2026.csv` |
 | Coverage | `src/coverage.py`, `src/coverage_walk.py` | Dasymetric population; straight-line and walking-network reach |
 | Priority | `src/priority.py` | Matches 143,787 speed-band segments to bus links, then computes peak and night speeds and bus-hours lost |
-| Collector | `src/collect.py` | Speed bands every 5 minutes and Traffic Incidents every 2 minutes, written atomically; `status` and `stop` subcommands |
+| Collector | `src/collect.py` | Speed bands every 10 minutes and Traffic Incidents every 2 minutes, written atomically; `status` and `stop` subcommands. A full snapshot is 288 paged calls, and DataMall's hourly quota (about 2,000 calls, observed) rules out 5 minutes |
 | Speed cache | `src/speed_cache.py` | One compressed matrix per day of band speeds for the 39,017 links the analyses use; rebuilt only for days whose files changed |
 | Priority by morning | `src/priority_days.py` | The priority rule morning by morning, the median across mornings, and rank stability between mornings |
 | Forecasts | `src/forecast.py`, `src/forecast_gnn.py` | Persistence, historical average, LightGBM and a diffusion graph neural net on the expressway + bus-corridor road graph |
@@ -210,7 +210,7 @@ python src/fetch_public.py                          # public data, no key needed
 curl -o data/raw/Singapore.osm.gz https://download.bbbike.org/osm/bbbike/Singapore/Singapore.osm.gz
 LTA_KEY=... python src/datamall.py static pv        # DataMall (free account key)
 LTA_KEY=... python src/datamall.py od 202608 202607  # origin-destination volumes
-LTA_KEY=... python src/collect.py run --until 202610302359   # speed bands every 5 min, incidents every 2 min
+LTA_KEY=... python src/collect.py run --until 202610302359   # speed bands every 10 min, incidents every 2 min
 python src/fetch_safety.py                          # SingStat / data.gov.sg safety and ridership tables
 python run_all.py                                   # walking network (first run), database, analyses, dashboard
 python src/forecast.py                              # forecasts (PyTorch: pip install torch)
