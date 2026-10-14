@@ -304,6 +304,20 @@ def brief(t, s, comp, implied, by_type, base, inc, polls, path):
         f"- Road segments used by bus routes are {base['bus_route_share_of_road_length']:.1%} of speed-band road "
         f"length ({base['bus_route_share_of_non_expressway_length']:.1%} of non-expressway length).",
     ]
+    m = inc[inc.matched] if len(inc) else inc
+    if len(m):
+        ne = m[~m.expressway]
+        ci_all = stats.binomtest(int(m.on_bus_route.sum()), len(m)).proportion_ci()
+        line = (f"- All incident types: {int(m.on_bus_route.sum())} of {len(m)} on bus-route segments "
+                f"({m.on_bus_route.mean():.1%}, 95% CI {ci_all.low:.1%}-{ci_all.high:.1%}); "
+                f"{len(m) - len(ne)} of {len(m)} are on expressways, which few bus routes use.")
+        if len(ne):
+            ci_ne = stats.binomtest(int(ne.on_bus_route.sum()), len(ne)).proportion_ci()
+            line += (f" Off expressways, {int(ne.on_bus_route.sum())} of {len(ne)} "
+                     f"({ne.on_bus_route.mean():.0%}, 95% CI {ci_ne.low:.0%}-{ci_ne.high:.0%}) are on bus-route "
+                     f"segments, against their {base['bus_route_share_of_non_expressway_length']:.0%} share of "
+                     "length.")
+        lines.append(line)
     if len(acc):
         a = acc.iloc[0]
         lines.append(

@@ -87,9 +87,51 @@ The 79.7% is an archived measurement from the original graph builder. A separate
 
 ### Bus priority screening
 
-Links are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Each link needs at least four valid snapshots in each period. In each snapshot, segments with finite positive speeds and lengths must cover at least half the bus link's length; missing observations do not count as zero speed. The sampling script takes about 20 minutes per snapshot (a 15-minute pause after each 4-minute pull).
+Links are ranked by scheduled bus-hours lost per hour: AM peak buses per hour × km × (1/peak speed − 1/night speed), with speeds from LTA traffic speed bands. Each link needs at least four valid snapshots in each period. In each snapshot, segments with finite positive speeds and lengths must cover at least half the bus link's length; missing observations do not count as zero speed. The first sampler took a snapshot about every 20 minutes. The collector restarted on 13 October takes one every 15 minutes.
 
-The reviewed build has **3,378 eligible links**, of which **2,637** have a positive estimated AM loss. Its AM data consists of **six snapshots on 28 September, 07:47–09:15**, compared with **50 night snapshots from 26 September to 3 October 2026** (Singapore time). This is one observed morning, not a representative multi-day delay estimate. Dates and counts are recorded alongside a hash of the displayed CSV in `outputs/priority_screen_metadata.json`; the dashboard shows a top-40 map and top-10 table.
+The screen runs morning by morning (`src/priority_days.py`):
+
+- A link's speed on a morning is the median of that morning's covered snapshots between 07:30 and 09:30, with at least four of them.
+- Its multi-morning AM speed is the median of those daily speeds, and it needs data on at least half the mornings.
+- The night reference is every night snapshot in the archive: 89 from 26 September to 14 October 2026.
+
+With one morning the code reproduces the earlier single-morning CSV exactly: same 3,378 links, same order, values equal to within 1e-13.
+
+**Two weekday mornings so far.** The archive holds 28 September (six snapshots) and 14 October (nine). The mornings from 29 September to 6 October were lost when the old sampler stopped on PC restarts.
+
+- **Eligible links.** 3,378 links are eligible on both mornings; 2,737 have a positive estimated loss on the combined screen.
+- **Agreement between the two mornings.** Kendall's tau is **0.72** over all 3,378 links, but only **8 of the 20** top-ranked links are the same on both mornings (top-20 overlap 0.40). The broad ordering holds from one morning to the next; a top-20 list from a single morning does not.
+- **Combined top 20.** The first seven are in both mornings' top 20: Jalan Eunos (Opp Blk 322 to Opp Blk 16), Upper East Coast Road before Bayshore Station, Loyang Avenue, Robinson Road, Yio Chu Kang Road, Yishun Avenue 2 and Shenton Way.
+- **Network total.** Estimated bus-hours lost per hour, summed over eligible links: 107.2 on 28 September, 94.9 on 14 October.
+- **Still to come.** Two mornings are too few for a stable shortlist. `python src/priority.py` re-ranks as the collector adds mornings, and `outputs/priority_stability.json` records the agreement for every pair of mornings.
+
+The dates and snapshot counts are stored with a hash of the displayed CSV in `outputs/priority_screen_metadata.json`. The dashboard shows a top-40 map and a top-10 table.
+
+### Short-term speed forecasts
+
+`src/forecast.py` predicts speed bands 20, 40 and 60 minutes ahead from the last hour of snapshots.
+
+- **Network.** 3,847 speed-band segments: the 2,598 expressway segments, plus the segments under bus links with 60 or more scheduled AM-peak buses an hour. 4,116 directed edges join each segment to the segments that start where it ends.
+- **Models.**
+  - Persistence (the last value).
+  - A historical average by segment, day type and time of day.
+  - LightGBM on own and neighbour lags.
+  - A diffusion graph neural net (`src/forecast_gnn.py`, PyTorch, 185,827 parameters). It mixes two hops downstream, upstream and over a learned adjacency, and predicts the change from the last speed.
+- **Split.** Whole days in time order: training 26–30 September (82 anchor slots), validation 1–2 October (49), test 14 October 00:00–09:40 (15, three of them in the AM peak).
+- **Errors.** In km/h on band midpoints; the bands are 10 km/h wide.
+- **Intervals.** 95% moving-block bootstrap over test slots. The same resamples are used for every model, so each model's paired difference from persistence gets its own interval.
+
+| Model | 20 min MAE | 40 min MAE | 60 min MAE | 20 min RMSE |
+|---|---|---|---|---|
+| Persistence | 3.42 (2.94–3.54) | 3.97 (3.27–4.52) | 4.45 (3.55–5.29) | 7.28 |
+| Historical average | 3.92 (2.95–4.32) | 4.05 (2.97–4.78) | 4.21 (2.97–5.19) | 8.31 |
+| LightGBM | 3.35 (2.79–3.50) | 3.65 (2.85–4.18) | 4.11 (2.97–5.05) | 6.37 |
+| Graph neural net, mean of 5 seeds | **3.12** (2.62–3.34) | 3.68 (2.84–4.41) | 4.14 (3.00–5.19) | 6.53 |
+
+- **20 minutes.** The graph net's MAE is 0.13–0.50 km/h below persistence (paired interval). All five seeds beat persistence on their own, with single-seed MAEs of 3.09–3.29 (mean 3.16, s.d. 0.08). LightGBM has the lowest RMSE.
+- **40 and 60 minutes.** LightGBM and the graph net are level, and both are below persistence. The historical average catches up with persistence at 60 minutes.
+- **AM peak.** Only three test slots fall in it: the graph net 3.86, persistence 3.88, LightGBM 4.14. There is no gain where congestion forms.
+- **How far this goes.** These numbers come from 15 test slots on one morning. The models were trained on 82 slots from five days of an irregular 18–20 minute archive, and graph-net training reached its 200-epoch cap. **This is not yet a credible general result.** The pipeline re-runs on the growing archive (`python src/forecast.py --test-from <date>`).
 
 ### Bus finance and fares
 
@@ -138,6 +180,7 @@ Fare scenarios (Scenarios sheet):
 - **Fatal involvements.** 18 in 2025 against 14 a year in 2022–2024: rate ratio 1.26 (0.68–2.23). There are too few events to call a change.
 - **Public buses only.** The Taskforce counted 191, 200 and 185 serious collisions in 2022–2024. Per ride, 2024 against 2022 is 0.87 (0.71–1.07). The bus captain was at fault in 45–50% of them.
 - **Exposure gap.** Official bus-km stops in 2014. The 2017 statements imply about 1.19 M bus-km a day, so a public-bus accident rate per bus-km for 2022–2025 cannot be rebuilt from public data.
+- **Live incidents (DataMall).** 167 distinct incidents were reported from 13 October 21:44 to 14 October 09:40. 124 of them were on expressways, which few bus routes use. Off expressways, 6 of 43 (14%, 95% CI 5–28%) fell on bus-route segments, which make up 23% of non-expressway road length. Nine were accidents, and none was on a bus-route segment. Half a day of data supports no conclusion; the archive grows with the collector.
 
 ### Reliability review, 3 October 2026
 
@@ -184,8 +227,8 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
   - 236 of 26,842 route rows skip a sequence number.
   - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
 - **Tests:**
-  - 201 tests, and `tests/mutate.py`, which makes 84 deliberate bugs that must each fail at least one test. CI runs both.
-  - The 51 mutants added for the collector, the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
+  - 202 tests, and `tests/mutate.py`, which makes 85 deliberate bugs that must each fail at least one test. CI runs both.
+  - The 52 mutants added for the collector, the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
   - The finance tests evaluate the workbook's formulas without Excel (pycel) and compare 28 headline cells and the scenario grid with the Python model.
   - The check has found test gaps three times, and each was closed:
     - the first test set let 3 of 13 bugs through;
@@ -197,7 +240,7 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
 - Straight-line catchments overstate access and the OSM walking network understates it. The two bracket the true figure.
 - Headway bands describe scheduled service, not observed buses.
 - Speed bands describe general traffic. Buses also stop at bus stops.
-- Speed coverage is estimated from matched segment lengths, not a union of road geometry. Band midpoint speeds and the resulting priority scores are screening approximations; the current AM sample covers only one morning.
+- Speed coverage is estimated from matched segment lengths, not a union of road geometry. Band midpoint speeds and the resulting priority scores are screening approximations; the AM sample covers two mornings (28 September and 14 October 2026).
 - The finance model's fare-group and transfer shares are 2018–2021 proxies, and monthly and concession passes are not modelled. Its revenue is 17.6% above LTA's restated audited figure, and the README reports that gap rather than tuning it away.
 - Traffic Police bus counts cover all bus types, and there is no public bus-km series after 2014, so public-bus accident rates per bus-km after 2017 cannot be rebuilt.
 - A surveillance flag with no verified cause is a lead. It becomes a finding when a source or the next month confirms it.

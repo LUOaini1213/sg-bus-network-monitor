@@ -26,14 +26,14 @@
     "note": "Jan-May 2017 public bus accidents divided by the rounded 2017 yearly rate of about 0.15 per 100,000 bus-km; a rough figure, since the rate is rounded and is a full-year average.",
     "bus_km_2014": 901700.0
   },
-  "incident_polls": 70,
+  "incident_polls": 349,
   "incident_window": {
     "first_poll": "2026-10-13T21:44:30",
-    "last_poll": "2026-10-14T00:00:00"
+    "last_poll": "2026-10-14T09:40:00"
   },
-  "distinct_incidents": 50,
+  "distinct_incidents": 167,
   "matched_within_m": 30.0,
-  "matched_incidents": 50,
+  "matched_incidents": 167,
   "network_baseline": {
     "bus_route_share_of_road_length": 0.22123308712968578,
     "bus_route_share_of_non_expressway_length": 0.23194378806823351

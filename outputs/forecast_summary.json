@@ -1,0 +1,71 @@
+{
+  "links": 3847,
+  "edges": 4116,
+  "expressway_links": 2598,
+  "bus_corridor_min_bph": 60,
+  "step_min": 20,
+  "lags": 3,
+  "horizons_min": [
+    20,
+    40,
+    60
+  ],
+  "snapshots": 269,
+  "grid_slots": 1267,
+  "filled_slots": 215,
+  "anchors": {
+    "train": 82,
+    "val": 49,
+    "test": 15,
+    "test_am_peak": 3
+  },
+  "days": {
+    "train": [
+      "2026-09-26",
+      "2026-09-27",
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30"
+    ],
+    "val": [
+      "2026-10-01",
+      "2026-10-02"
+    ],
+    "test": [
+      "2026-10-14"
+    ]
+  },
+  "bootstrap": {
+    "block_slots": 6,
+    "resamples": 1000
+  },
+  "gnn": {
+    "device": "cuda",
+    "hidden": 64,
+    "layers": 2,
+    "k_hops": 2,
+    "seeds": {
+      "0": {
+        "best_epoch": 193,
+        "val_mae": 3.6688
+      },
+      "1": {
+        "best_epoch": 199,
+        "val_mae": 3.6361
+      },
+      "2": {
+        "best_epoch": 177,
+        "val_mae": 3.6882
+      },
+      "3": {
+        "best_epoch": 119,
+        "val_mae": 3.7394
+      },
+      "4": {
+        "best_epoch": 189,
+        "val_mae": 3.6472
+      }
+    },
+    "parameters": 185827
+  }
+}

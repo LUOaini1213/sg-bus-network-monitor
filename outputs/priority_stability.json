@@ -1,16 +1,29 @@
 {
   "summary": {
-    "mornings": 1,
-    "median_pairwise_top20_overlap": null,
-    "median_pairwise_kendall_tau": null,
-    "combined_top20_in_daily_top20_on_half_or_more_mornings": 20
+    "mornings": 2,
+    "median_pairwise_top20_overlap": 0.4,
+    "median_pairwise_kendall_tau": 0.7157951467380844,
+    "combined_top20_in_daily_top20_on_half_or_more_mornings": 19
   },
-  "pairs": [],
+  "pairs": [
+    {
+      "a": "2026-09-28",
+      "b": "2026-10-14",
+      "common_links": 3378,
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.7157951467380844
+    }
+  ],
   "vs_combined": [
     {
       "morning": "2026-09-28",
-      "top20_overlap_with_combined": 1.0,
-      "kendall_tau_with_combined": 0.9999999999999998
+      "top20_overlap_with_combined": 0.55,
+      "kendall_tau_with_combined": 0.8669879364436787
+    },
+    {
+      "morning": "2026-10-14",
+      "top20_overlap_with_combined": 0.8,
+      "kendall_tau_with_combined": 0.8493451699340595
     }
   ]
 }

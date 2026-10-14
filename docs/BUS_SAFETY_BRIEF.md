@@ -7,7 +7,7 @@ Built by `python src/safety.py` from the tables in `data/reference/safety/` and 
 ## 1. Trend: all buses, Traffic Police data
 
 - **462 buses** were involved in fatal or injury accidents in 2025 (18 in fatal ones), 3.0% of all vehicles involved.
-- Per 1,000 registered buses: **24.6** in 2025 (95% CI 22.4-26.9), against 25.2 over 2017-2019. Rate ratio 2025 / 2017-2019: 0.97 (95% CI 0.88-1.08). The post-COVID rise (2021: 13.6) has brought the rate back to its pre-COVID level, not above it.
+- Per 1,000 registered buses: **24.6** in 2025 (95% CI 22.4-26.9), against 25.2 over 2017-2019. Rate ratio 2025 / 2017-2019: 0.97 (95% CI 0.88-1.08). The rise from the 2021 low (13.6) has brought the rate back to its pre-COVID level, not above it.
 - Fatal involvements: 18 in 2025 against 14 a year in 2022-2024. Rate ratio 1.26 (95% CI 0.68-2.23): too few events to call a change.
 - Bus occupants injured per 100 million public bus rides: **19.5** in 2025 against 18.4 in 2019; 2025 / 2017-2019 0.90 (95% CI 0.78-1.03). Bus occupants killed: 1 in 2025.
 
@@ -22,9 +22,10 @@ Built by `python src/safety.py` from the tables in `data/reference/safety/` and 
 
 ## 3. Where live incidents fall relative to the bus network (LTA DataMall Traffic Incidents)
 
-- Archive: 70 polls, 2026-10-13 21:44 to 2026-10-14 00:00 (Singapore time), 50 distinct incidents, 50 within 30 m of a speed-band road segment.
+- Archive: 349 polls, 2026-10-13 21:44 to 2026-10-14 09:40 (Singapore time), 167 distinct incidents, 167 within 30 m of a speed-band road segment.
 - Road segments used by bus routes are 22.1% of speed-band road length (23.2% of non-expressway length).
-- Accidents: 1 reported; 0 on bus-route segments (0%, 95% CI 0%-98%). Off expressways: 0 of 0.
+- All incident types: 8 of 167 on bus-route segments (4.8%, 95% CI 2.1%-9.2%); 124 of 167 are on expressways, which few bus routes use. Off expressways, 6 of 43 (14%, 95% CI 5%-28%) are on bus-route segments, against their 23% share of length.
+- Accidents: 9 reported; 0 on bus-route segments (0%, 95% CI 0%-34%). Off expressways: 0 of 2.
 - The feed reports incidents on the road, not whether a bus was involved, and covers expressways more densely than local roads. It has no history, so this archive starts on 13 October 2026; with a few days of data, the shares above are descriptive and their intervals are wide. Per-incident text is not published here.
 
 ## 4. What the public data cannot say
