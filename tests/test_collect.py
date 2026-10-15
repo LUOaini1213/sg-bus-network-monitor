@@ -125,3 +125,162 @@ def test_quota_fault_is_not_retried():
     with pytest.raises(collect.QuotaExceeded):
         collect.get_page(Quota(), "k", "v4/TrafficSpeedBands", 0)
     assert Quota.calls == 1
+
+
+# ---------------------------------------------------------------- GitHub Actions collector: window, holidays, cron
+UTC = dt.timezone.utc
+WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "collect.yml"
+
+
+@pytest.mark.parametrize("now, expected", [
+    (dt.datetime(2026, 10, 19, 6, 30), True),             # Monday, first pull
+    (dt.datetime(2026, 10, 19, 6, 29), False),
+    (dt.datetime(2026, 10, 23, 10, 0), True),             # Friday, last pull
+    (dt.datetime(2026, 10, 23, 10, 20), True),            # a late start still belongs to the morning
+    (dt.datetime(2026, 10, 23, 10, 21), False),
+    (dt.datetime(2026, 10, 23, 13, 0), False),
+    (dt.datetime(2026, 10, 24, 8, 0), False),             # Saturday
+    (dt.datetime(2026, 10, 25, 8, 0), False),             # Sunday
+    (dt.datetime(2026, 11, 9, 8, 0), False),              # Monday after Deepavali (holiday in lieu)
+    (dt.datetime(2026, 12, 25, 8, 0), False),             # Christmas, a Friday
+    (dt.datetime(2026, 10, 18, 22, 30, tzinfo=UTC), True),   # Sunday night UTC is Monday 06:30 SGT
+    (dt.datetime(2026, 10, 19, 6, 30, tzinfo=UTC), False),   # 06:30 UTC is 14:30 SGT
+    (dt.datetime(2026, 10, 23, 2, 0, tzinfo=UTC), True),     # Friday 10:00 SGT
+    (dt.datetime(2026, 10, 23, 22, 30, tzinfo=UTC), False),  # Friday night UTC is Saturday morning SGT
+    (dt.datetime(2026, 11, 8, 23, 0, tzinfo=UTC), False),    # 07:00 SGT on the 9 November holiday
+])
+def test_collection_window_is_weekday_mornings_in_singapore_time_without_holidays(now, expected):
+    assert collect.collection_window(now)[0] is expected
+
+
+def test_collection_window_uses_the_given_holiday_list_and_warns_past_its_years():
+    monday = dt.datetime(2026, 10, 19, 8, 0)
+    assert collect.collection_window(monday, holidays={dt.date(2026, 10, 19)})[0] is False
+    ok, reason = collect.collection_window(dt.datetime(2027, 1, 4, 8, 0))
+    assert ok and "2027" in reason
+
+
+def _cron_field(text, lo, hi):
+    out = set()
+    for part in text.split(","):
+        rng, _, step = part.partition("/")
+        a, b = (lo, hi) if rng == "*" else map(int, (rng.split("-") * 2)[:2])
+        out |= set(range(a, b + 1, int(step or 1)))
+    return out
+
+
+def _cron_fires(expr, start, end):
+    """UTC times between start and end matched by a 5-field cron with *, lists, ranges and steps (no dom/month)."""
+    minute, hour, dom, month, dow = expr.split()
+    assert dom == "*" and month == "*"
+    mins, hours, days = _cron_field(minute, 0, 59), _cron_field(hour, 0, 23), _cron_field(dow, 0, 6)
+    t, out = start, set()
+    while t < end:
+        if t.minute in mins and t.hour in hours and (t.isoweekday() % 7) in days:
+            out.add(t)
+        t += dt.timedelta(minutes=1)
+    return out
+
+
+def test_workflow_cron_fires_every_15_minutes_from_0630_to_1000_sgt_on_weekdays_only():
+    import re
+    crons = re.findall(r'cron:\s*"([^"]+)"', WORKFLOW.read_text(encoding="utf-8"))
+    start = dt.datetime(2026, 10, 18, tzinfo=UTC)  # a Sunday; one full week
+    fires = set().union(*(_cron_fires(c, start, start + dt.timedelta(days=7)) for c in crons))
+    sgt = sorted(f.astimezone(collect.SGT).replace(tzinfo=None) for f in fires)
+    expected = [dt.datetime(2026, 10, d, 6, 30) + dt.timedelta(minutes=15 * k)
+                for d in range(19, 24) for k in range(15)]
+    assert sgt == expected
+    assert all(collect.collection_window(f)[0] for f in fires)
+    assert "LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}" in WORKFLOW.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------- one pull per run: quota backoff and manifest
+class QuotaThenRows(FakeSession):
+    """Answers the first `faults` calls with DataMall's quota fault, then serves pages like FakeSession."""
+
+    def __init__(self, total, faults):
+        super().__init__(total)
+        self.faults = faults
+
+    def get(self, url, params, headers, timeout):
+        if self.faults:
+            self.faults -= 1
+            self.calls.append(params["$skip"])
+
+            class R:
+                status_code, text = 429, '{"fault":{"faultstring":"Rate limit quota violation."}}'
+
+                def raise_for_status(self):
+                    raise collect.requests.HTTPError("429")
+            return R()
+        return super().get(url, params, headers, timeout)
+
+
+def test_quota_fault_waits_with_backoff_then_asks_for_the_same_page(monkeypatch):
+    waits, retries = [], []
+    monkeypatch.setattr(collect.time, "sleep", waits.append)
+    monkeypatch.setattr(collect, "ECHO", True)
+    s = QuotaThenRows(1120, faults=2)
+    rows = collect.fetch_all(s, "k", "v4/TrafficSpeedBands", workers=1, backoff=(60, 120, 240), retries=retries)
+    assert [r["LinkID"] for r in rows] == list(range(1120))
+    assert waits == [60, 120] and retries == [0, 0]
+    assert s.calls[:3] == [0, 0, 0]
+
+
+def test_quota_fault_after_the_last_backoff_is_raised(monkeypatch):
+    monkeypatch.setattr(collect.time, "sleep", lambda s: None)
+    monkeypatch.setattr(collect, "ECHO", True)
+    with pytest.raises(collect.QuotaExceeded):
+        collect.fetch_all(QuotaThenRows(10, faults=3), "k", "v4/TrafficSpeedBands", workers=1, backoff=(1, 2))
+
+
+def test_once_writes_one_snapshot_one_incident_poll_and_manifests(tmp_path, monkeypatch):
+    import hashlib
+
+    class Session(FakeSession):
+        def get(self, url, params, headers, timeout):
+            r = super().get(url, params, headers, timeout)
+            if url.endswith("TrafficIncidents"):
+                r.json = lambda: {"value": [{"Type": "Accident", "Message": "x"}] if params["$skip"] == 0 else []}
+            else:
+                rows = r.json()["value"]
+                for x in rows:
+                    x.update(RoadName="R", RoadCategory=1, StartLon=103.8, StartLat=1.3, EndLon=103.81, EndLat=1.31)
+                r.json = lambda: {"value": rows}
+            return r
+    monkeypatch.setenv("LTA_KEY", "secret-key")
+    monkeypatch.setattr(collect.requests, "Session", lambda: Session(1200))
+    monkeypatch.setattr(collect, "ECHO", True)
+    stamp = dt.datetime(2026, 10, 19, 7, 15)
+    assert collect.once(tmp_path, stamp, expected_links=1200) == 0
+    day = tmp_path / "data" / "raw" / "speedbands" / "2026-10-19"
+    snap = day / "sb_20261019_0715.csv.gz"
+    m = pd.read_csv(day / "manifest.csv")
+    assert m.columns.tolist() == collect.MANIFEST_COLUMNS
+    assert m.loc[0, "rows"] == 1200 and m.loc[0, "status"] == "ok"
+    assert m.loc[0, "sha256"] == hashlib.sha256(snap.read_bytes()).hexdigest()
+    assert m.loc[0, "snapshot_sgt"] == "2026-10-19T07:15"
+    inc = tmp_path / "data" / "raw" / "incidents" / "2026-10-19"
+    with gzip.open(inc / "inc_20261019_0715.jsonl.gz", "rt") as z:
+        assert json.loads(z.read())["n"] == 1
+    assert pd.read_csv(inc / "manifest.csv").loc[0, "rows"] == 1
+    links = tmp_path / "data" / "raw" / "speedbands" / "links" / "speedband_links.csv.gz"
+    assert pd.read_csv(links).columns.tolist() == collect.LINK_COLUMNS
+    before = links.stat().st_mtime_ns
+    assert collect.once(tmp_path, stamp + dt.timedelta(minutes=15), expected_links=1200) == 0
+    assert links.stat().st_mtime_ns == before  # unchanged geometry is not rewritten
+    assert len(pd.read_csv(day / "manifest.csv")) == 2
+    assert not any("secret-key" in p.read_bytes().decode("latin-1") for p in tmp_path.rglob("*") if p.is_file())
+
+
+def test_once_records_a_failed_pull_in_the_manifest(tmp_path, monkeypatch):
+    monkeypatch.setenv("LTA_KEY", "k")
+    monkeypatch.setattr(collect.time, "sleep", lambda s: None)
+    monkeypatch.setattr(collect.requests, "Session", lambda: QuotaThenRows(10, faults=10 ** 6))
+    monkeypatch.setattr(collect, "ECHO", True)
+    assert collect.once(tmp_path, dt.datetime(2026, 10, 19, 8, 0), backoff=(1, 2)) == 2
+    m = pd.read_csv(tmp_path / "data" / "raw" / "speedbands" / "2026-10-19" / "manifest.csv")
+    assert m.loc[0, "status"].startswith("failed: QuotaExceeded") and m.loc[0, "rows"] == 0
+    assert m.loc[0, "quota_retries"] >= 2  # two waits on the first page; parallel pages may add their own
+    assert not list((tmp_path / "data" / "raw" / "speedbands" / "2026-10-19").glob("sb_*"))

@@ -96,6 +96,13 @@ MUTANTS = [
     ("collect.py", 'if r.status_code >= 400 and "quota" in r.text.lower():', "if False:", CO),
     ("collect.py", "    os.replace(tmp, path)\n", "", CO),
     ("collect.py", "(int(epoch // every) + 1) * every", "round(epoch / every) * every", CO),
+    # GitHub Actions collector: Singapore weekday mornings only, no public holidays, quota backoff.
+    ("collect.py", "if t.date() in holidays:", "if False:", CO),
+    ("collect.py", "t = now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now", "t = now.replace(tzinfo=None)",
+     CO),
+    ("collect.py", "if t.weekday() >= 5:", "if t.weekday() > 5:", CO),
+    ("collect.py", "if not lo <= t.time() <= end:", "if not lo <= t.time():", CO),
+    ("collect.py", "            time.sleep(wait)\n", "", CO),
     ("speed_cache.py", "np.where(band >= 8, lo + 5, (lo + hi + 1) / 2)", "np.where(band >= 8, lo + 4.5, (lo + hi + 1) / 2)",
      CO),
     ("speed_cache.py", "out[pos[pos_ok]] = v[pos_ok]", "out[pos[pos_ok]] = v[:pos_ok.sum()]", CO),

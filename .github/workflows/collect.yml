@@ -1,0 +1,81 @@
+name: collect speed bands
+# One DataMall speed-band pull (288 paged calls) and one Traffic Incidents poll every 15 minutes, 06:30-10:00
+# Singapore time on weekdays. Singapore is UTC+08:00 with no daylight saving, and GitHub cron is UTC, so the
+# window is 22:30-02:00 UTC from Sunday to Thursday night. src/collect.py gate re-checks the window in Singapore
+# time and skips public holidays (demand.HOLIDAYS_2026). Snapshots are committed to the data-collect branch.
+on:
+  schedule:
+    - cron: "30,45 22 * * 0-4"   # 06:30, 06:45 SGT
+    - cron: "*/15 23 * * 0-4"    # 07:00-07:45 SGT
+    - cron: "*/15 0,1 * * 1-5"   # 08:00-09:45 SGT
+    - cron: "0 2 * * 1-5"        # 10:00 SGT
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Pull even outside the weekday 06:30-10:00 SGT window or on a public holiday"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-speed-bands   # one pull at a time, and one writer on data-collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests numpy pandas duckdb
+      - name: Weekday morning, not a public holiday?
+        id: gate
+        run: python code/src/collect.py gate ${{ inputs.force && '--force' || '' }}
+      - name: Check out data-collect (today's folders only)
+        if: steps.gate.outputs.collect == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: data-collect
+          path: store
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            data/raw/speedbands/${{ steps.gate.outputs.day }}
+            data/raw/speedbands/links
+            data/raw/incidents/${{ steps.gate.outputs.day }}
+      - name: Pull speed bands and incidents
+        id: collect
+        if: steps.gate.outputs.collect == 'true'
+        env:
+          LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}
+        run: python code/src/collect.py once --out store --stamp "${{ steps.gate.outputs.stamp }}"
+      - name: Commit to data-collect
+        if: always() && steps.gate.outputs.collect == 'true' && steps.collect.outcome != 'skipped'
+        working-directory: store
+        env:
+          STAMP: ${{ steps.gate.outputs.stamp }}
+          SUMMARY: ${{ steps.collect.outputs.summary }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
+          git commit -q -m "Speed bands ${STAMP/T/ } SGT" -m "${SUMMARY:-no summary}"
+          for wait in 2 4 8 16; do
+            git push -q origin HEAD:data-collect && exit 0
+            echo "push failed; retrying in ${wait} s on top of the latest data-collect"
+            sleep "$wait"
+            c=$(git rev-parse HEAD)
+            git fetch -q --depth=1 --filter=blob:none origin data-collect
+            git reset -q --hard FETCH_HEAD
+            git cherry-pick "$c"
+          done
+          exit 1
