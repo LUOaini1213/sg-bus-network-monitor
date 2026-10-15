@@ -102,6 +102,7 @@ MUTANTS = [
      CO),
     ("collect.py", "if t.weekday() >= 5:", "if t.weekday() > 5:", CO),
     ("collect.py", "if not lo <= t.time() <= end:", "if not lo <= t.time():", CO),
+    ("collect.py", "if t.time() >= nlo or t.time() <= nhi:", "if nlo <= t.time() <= nhi:", CO),
     ("collect.py", "            time.sleep(wait)\n", "", CO),
     ("speed_cache.py", "np.where(band >= 8, lo + 5, (lo + hi + 1) / 2)", "np.where(band >= 8, lo + 4.5, (lo + hi + 1) / 2)",
      CO),

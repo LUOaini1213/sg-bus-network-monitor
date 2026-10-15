@@ -21,8 +21,9 @@ Timestamps are the machine's local time, which is UTC+08:00 (the same offset as 
 The AccountKey is read from LTA_KEY at start-up and never written anywhere.
 
 GitHub Actions (.github/workflows/collect.yml) runs `gate` and then `once` every 15 minutes, 06:30-10:00 Singapore
-time on weekdays. `gate` converts the runner's UTC clock to Singapore time (UTC+08:00, no daylight saving) and skips
-weekends and the public holidays in demand.HOLIDAYS_2026. `once` makes exactly one speed-band pull; a quota fault
+time on weekdays, and twice every night (01:10 and 03:10) for the night reference. `gate` converts the runner's UTC
+clock to Singapore time (UTC+08:00, no daylight saving) and skips weekend and public-holiday mornings
+(demand.HOLIDAYS_2026); night pulls run every night. `once` makes exactly one speed-band pull; a quota fault
 waits QUOTA_BACKOFF seconds and asks for the same page again, and a pull that still fails is recorded in the
 day's manifest.csv instead of being dropped silently. Files go under <out>/data/raw/speedbands/YYYY-MM-DD/ and
 <out>/data/raw/incidents/YYYY-MM-DD/, which the workflow commits to the data-collect branch.
@@ -56,6 +57,7 @@ PAGE = 500
 EXPECTED_LINKS = 143787
 SGT = dt.timezone(dt.timedelta(hours=8), "SGT")
 COLLECT_WINDOW = (dt.time(6, 30), dt.time(10, 0))
+NIGHT_WINDOW = (dt.time(22, 0), dt.time(5, 0))  # priority.NIGHT; two pulls a night, every night
 LATE_GRACE_MIN = 20  # GitHub starts scheduled runs late; a 10:00 run that starts at 10:12 still belongs to the morning
 QUOTA_BACKOFF = (60, 120, 240)
 MANIFEST_COLUMNS = ["snapshot_sgt", "file", "rows", "sha256", "bytes", "pull_seconds", "quota_retries", "status"]
@@ -145,13 +147,18 @@ def append_incidents(items, when, directory=INC_DIR):
     return path
 
 
-def collection_window(now, holidays=HOLIDAYS_2026, window=COLLECT_WINDOW, grace_min=LATE_GRACE_MIN):
-    """(collect?, reason) for a run starting at `now`: a weekday that is not a public holiday, 06:30-10:00 SGT.
+def collection_window(now, holidays=HOLIDAYS_2026, window=COLLECT_WINDOW, grace_min=LATE_GRACE_MIN,
+                      night=NIGHT_WINDOW):
+    """(collect?, reason) for a run starting at `now`: any night (22:00-05:00 SGT, the priority screen's night
+    reference), or a weekday that is not a public holiday, 06:30-10:00 SGT.
 
     An aware `now` (the runner's UTC clock) is converted to Singapore time; a naive one is taken as Singapore time.
-    The end of the window is extended by grace_min minutes because GitHub starts scheduled runs late.
+    The end of the morning window is extended by grace_min minutes because GitHub starts scheduled runs late.
     """
     t = now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now
+    nlo, nhi = night
+    if t.time() >= nlo or t.time() <= nhi:
+        return True, f"{t:%a %Y-%m-%d %H:%M} SGT is a night pull (free-flow reference)"
     if t.weekday() >= 5:
         return False, f"{t:%a %Y-%m-%d} is a weekend day"
     if t.date() in holidays:

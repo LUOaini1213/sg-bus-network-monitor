@@ -1,14 +1,16 @@
 name: collect speed bands
 # One DataMall speed-band pull (288 paged calls) and one Traffic Incidents poll every 15 minutes, 06:30-10:00
 # Singapore time on weekdays. Singapore is UTC+08:00 with no daylight saving, and GitHub cron is UTC, so the
-# window is 22:30-02:00 UTC from Sunday to Thursday night. src/collect.py gate re-checks the window in Singapore
-# time and skips public holidays (demand.HOLIDAYS_2026). Snapshots are committed to the data-collect branch.
+# window is 22:30-02:00 UTC from Sunday to Thursday night. Two more pulls every night, 01:10 and 03:10 SGT, give
+# the bus-priority screen its free-flow night reference. src/collect.py gate re-checks both windows in Singapore
+# time and skips public-holiday mornings (demand.HOLIDAYS_2026). Snapshots are committed to the data-collect branch.
 on:
   schedule:
     - cron: "30,45 22 * * 0-4"   # 06:30, 06:45 SGT
     - cron: "*/15 23 * * 0-4"    # 07:00-07:45 SGT
     - cron: "*/15 0,1 * * 1-5"   # 08:00-09:45 SGT
     - cron: "0 2 * * 1-5"        # 10:00 SGT
+    - cron: "10 17,19 * * *"     # 01:10 and 03:10 SGT, every night
   workflow_dispatch:
     inputs:
       force:

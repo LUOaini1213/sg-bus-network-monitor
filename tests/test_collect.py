@@ -139,6 +139,13 @@ WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "coll
     (dt.datetime(2026, 10, 23, 10, 20), True),            # a late start still belongs to the morning
     (dt.datetime(2026, 10, 23, 10, 21), False),
     (dt.datetime(2026, 10, 23, 13, 0), False),
+    (dt.datetime(2026, 10, 24, 1, 10), True),             # night pulls run every night, weekends included
+    (dt.datetime(2026, 11, 9, 3, 10), True),              # and on holidays
+    (dt.datetime(2026, 10, 20, 22, 0), True),
+    (dt.datetime(2026, 10, 20, 21, 59), False),
+    (dt.datetime(2026, 10, 21, 5, 0), True),
+    (dt.datetime(2026, 10, 21, 5, 1), False),
+    (dt.datetime(2026, 10, 24, 17, 10, tzinfo=UTC), True),   # Sunday 01:10 SGT
     (dt.datetime(2026, 10, 24, 8, 0), False),             # Saturday
     (dt.datetime(2026, 10, 25, 8, 0), False),             # Sunday
     (dt.datetime(2026, 11, 9, 8, 0), False),              # Monday after Deepavali (holiday in lieu)
@@ -151,6 +158,11 @@ WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "coll
 ])
 def test_collection_window_is_weekday_mornings_in_singapore_time_without_holidays(now, expected):
     assert collect.collection_window(now)[0] is expected
+
+
+def test_night_window_is_the_priority_screens_night_reference():
+    import priority
+    assert collect.NIGHT_WINDOW == priority.NIGHT
 
 
 def test_collection_window_uses_the_given_holiday_list_and_warns_past_its_years():
@@ -182,15 +194,16 @@ def _cron_fires(expr, start, end):
     return out
 
 
-def test_workflow_cron_fires_every_15_minutes_from_0630_to_1000_sgt_on_weekdays_only():
+def test_workflow_cron_fires_on_weekday_mornings_every_15_minutes_and_twice_every_night():
     import re
     crons = re.findall(r'cron:\s*"([^"]+)"', WORKFLOW.read_text(encoding="utf-8"))
     start = dt.datetime(2026, 10, 18, tzinfo=UTC)  # a Sunday; one full week
     fires = set().union(*(_cron_fires(c, start, start + dt.timedelta(days=7)) for c in crons))
     sgt = sorted(f.astimezone(collect.SGT).replace(tzinfo=None) for f in fires)
-    expected = [dt.datetime(2026, 10, d, 6, 30) + dt.timedelta(minutes=15 * k)
+    mornings = [dt.datetime(2026, 10, d, 6, 30) + dt.timedelta(minutes=15 * k)
                 for d in range(19, 24) for k in range(15)]
-    assert sgt == expected
+    nights = [dt.datetime(2026, 10, d, h, 10) for d in range(19, 26) for h in (1, 3)]  # 17:10, 19:10 UTC
+    assert sgt == sorted(mornings + nights)
     assert all(collect.collection_window(f)[0] for f in fires)
     assert "LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}" in WORKFLOW.read_text(encoding="utf-8")
 

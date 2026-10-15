@@ -204,7 +204,7 @@ See [review evidence and reproduction details](docs/REVIEW_20261003.md).
 | Anomalies | `src/anomalies.py` | Evidence table per flagged stop: monthly series, service changes (renumbering aware), OD changes, category, and verified events from `data/reference/network_events_2026.csv` |
 | Coverage | `src/coverage.py`, `src/coverage_walk.py` | Dasymetric population; straight-line and walking-network reach |
 | Priority | `src/priority.py` | Matches 143,787 speed-band segments to bus links, then computes peak and night speeds and bus-hours lost |
-| Collector | `src/collect.py`, `.github/workflows/collect.yml` | Speed bands every 15 minutes and Traffic Incidents every 2 minutes, written atomically; `status` and `stop` subcommands. A full snapshot is 288 paged calls; at 5- and 10-minute cadences DataMall's call quota cut pulls off after 5-7 snapshots an hour. From 16 October 2026 GitHub Actions takes the weekday-morning snapshots (`gate` and `once` subcommands) and commits them to the `data-collect` branch |
+| Collector | `src/collect.py`, `.github/workflows/collect.yml` | Speed bands every 15 minutes and Traffic Incidents every 2 minutes, written atomically; `status` and `stop` subcommands. A full snapshot is 288 paged calls; at 5- and 10-minute cadences DataMall's call quota cut pulls off after 5-7 snapshots an hour. From 16 October 2026 GitHub Actions takes the weekday-morning and nightly snapshots (`gate` and `once` subcommands) and commits them to the `data-collect` branch |
 | Speed cache | `src/speed_cache.py` | One compressed matrix per day of band speeds for the 39,017 links the analyses use; rebuilt only for days whose files changed |
 | Priority by morning | `src/priority_days.py` | The priority rule morning by morning, the median across mornings, and rank stability between mornings |
 | Forecasts | `src/forecast.py`, `src/forecast_gnn.py` | Persistence, historical average, LightGBM and a diffusion graph neural net on the expressway + bus-corridor road graph |
@@ -227,8 +227,8 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
   - 236 of 26,842 route rows skip a sequence number.
   - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
 - **Tests:**
-  - 224 tests, and `tests/mutate.py`, which makes 90 deliberate bugs that must each fail at least one test. CI runs both.
-  - The 57 mutants added for the collector (five of them for the GitHub Actions window, holidays and quota backoff), the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
+  - 232 tests, and `tests/mutate.py`, which makes 91 deliberate bugs that must each fail at least one test. CI runs both.
+  - The 58 mutants added for the collector (six of them for the GitHub Actions morning and night windows, holidays and quota backoff), the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
   - The finance tests evaluate the workbook's formulas without Excel (pycel) and compare 28 headline cells and the scenario grid with the Python model.
   - The check has found test gaps three times, and each was closed:
     - the first test set let 3 of 13 bugs through;
@@ -254,7 +254,7 @@ curl -o data/raw/Singapore.osm.gz https://download.bbbike.org/osm/bbbike/Singapo
 LTA_KEY=... python src/datamall.py static pv        # DataMall (free account key)
 LTA_KEY=... python src/datamall.py od 202608 202607  # origin-destination volumes
 LTA_KEY=... python src/collect.py run --until 202610302359   # speed bands every 15 min, incidents every 2 min
-git fetch origin data-collect                       # weekday-morning snapshots from GitHub Actions (from 16 Oct 2026)
+git fetch origin data-collect                       # weekday-morning and night snapshots from GitHub Actions (from 16 Oct 2026)
 python src/fetch_safety.py                          # SingStat / data.gov.sg safety and ridership tables
 python run_all.py                                   # walking network (first run), database, analyses, dashboard
 python src/forecast.py                              # forecasts (PyTorch: pip install torch)
@@ -285,9 +285,9 @@ Raw data is not committed. `data/raw/` is rebuilt by the fetch commands above.
 - **Stop.** `python src/collect.py stop` writes a stop file, and the collector exits within about 10 seconds. You can also stop the process whose id is in `data/raw/datamall/collector.pid`.
 - **Limits.** Sleep or a reboot stops the collector. Gaps show up in the file list and in `collector.log`.
 
-From 16 October 2026 the weekday-morning snapshots are taken by GitHub Actions instead (`.github/workflows/collect.yml`):
+From 16 October 2026 the weekday-morning and night snapshots are taken by GitHub Actions instead (`.github/workflows/collect.yml`):
 
-- **When.** Every 15 minutes from 06:30 to 10:00 Singapore time, Monday to Friday. GitHub cron runs on UTC, so the schedule is 22:30-02:00 UTC from Sunday to Thursday night. `python src/collect.py gate` re-checks the window in Singapore time and skips the public holidays in `src/demand.py`. A manual run (`workflow_dispatch`) can force a pull outside the window.
+- **When.** Every 15 minutes from 06:30 to 10:00 Singapore time, Monday to Friday. GitHub cron runs on UTC, so the schedule is 22:30-02:00 UTC from Sunday to Thursday night. Two more pulls every night, at 01:10 and 03:10 (17:10 and 19:10 UTC), keep the priority screen's 22:00-05:00 night reference current. `python src/collect.py gate` re-checks both windows in Singapore time and skips morning pulls on the public holidays in `src/demand.py`. A manual run (`workflow_dispatch`) can force a pull outside the windows.
 - **What.** `python src/collect.py once` makes one speed-band pull and one incident poll per run. A "Rate limit quota violation" waits 60, 120 and then 240 seconds before the same page is asked for again. A pull that still fails is written to the day's manifest and fails the run, so it shows in the Actions list.
 - **Where.** The `data-collect` branch, which shares no history with `main`. Each run is one commit: `data/raw/speedbands/YYYY-MM-DD/sb_YYYYMMDD_HHMM.csv.gz` (the same format as above) and a `manifest.csv` row with the time, row count and SHA-256, plus the incident poll under `data/raw/incidents/YYYY-MM-DD/`. Link geometry is kept once in `data/raw/speedbands/links/`.
 - **Key.** The repository secret `LTA_ACCOUNT_KEY` is passed to that one step as `LTA_KEY`. It is not printed or written to the branch.
