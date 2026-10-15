@@ -227,7 +227,7 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
   - 236 of 26,842 route rows skip a sequence number.
   - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
 - **Tests:**
-  - 223 tests, and `tests/mutate.py`, which makes 90 deliberate bugs that must each fail at least one test. CI runs both.
+  - 224 tests, and `tests/mutate.py`, which makes 90 deliberate bugs that must each fail at least one test. CI runs both.
   - The 57 mutants added for the collector (five of them for the GitHub Actions window, holidays and quota backoff), the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
   - The finance tests evaluate the workbook's formulas without Excel (pycel) and compare 28 headline cells and the scenario grid with the Python model.
   - The check has found test gaps three times, and each was closed:

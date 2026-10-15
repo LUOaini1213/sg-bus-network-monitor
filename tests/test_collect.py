@@ -284,3 +284,13 @@ def test_once_records_a_failed_pull_in_the_manifest(tmp_path, monkeypatch):
     assert m.loc[0, "status"].startswith("failed: QuotaExceeded") and m.loc[0, "rows"] == 0
     assert m.loc[0, "quota_retries"] >= 2  # two waits on the first page; parallel pages may add their own
     assert not list((tmp_path / "data" / "raw" / "speedbands" / "2026-10-19").glob("sb_*"))
+
+
+def test_missing_key_is_an_actions_error_annotation_and_writes_nothing(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("LTA_KEY", raising=False)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setattr(collect, "ECHO", True)
+    with pytest.raises(SystemExit):
+        collect.once(tmp_path, dt.datetime(2026, 10, 19, 8, 0))
+    assert "::error::LTA_KEY is empty" in capsys.readouterr().out
+    assert not list(tmp_path.iterdir())

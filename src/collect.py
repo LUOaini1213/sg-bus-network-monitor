@@ -171,6 +171,13 @@ def sgt_minute(now=None):
     return now.astimezone(SGT).replace(tzinfo=None, second=0, microsecond=0)
 
 
+def annotate(msg):
+    """An error annotation on the GitHub Actions run (readable without the job log); a log line elsewhere."""
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::error::{msg}", flush=True)
+    log(msg)
+
+
 def github_output(**values):
     """Step outputs for GitHub Actions (ignored outside a workflow)."""
     path = os.environ.get("GITHUB_OUTPUT")
@@ -225,7 +232,8 @@ def once(out, stamp, expected_links=EXPECTED_LINKS, backoff=QUOTA_BACKOFF):
     ECHO = True
     key = os.environ.get("LTA_KEY")
     if not key:
-        raise SystemExit("set LTA_KEY in the environment (the workflow maps the LTA_ACCOUNT_KEY secret to it)")
+        annotate("LTA_KEY is empty: add the LTA_ACCOUNT_KEY repository secret (Settings > Secrets and variables > Actions)")
+        raise SystemExit(2)
     out = pathlib.Path(out)
     day = f"{stamp:%Y-%m-%d}"
     session = requests.Session()
@@ -255,6 +263,7 @@ def once(out, stamp, expected_links=EXPECTED_LINKS, backoff=QUOTA_BACKOFF):
         except Exception as e:  # recorded in the manifest and the job log; the job fails after the commit
             failures += 1
             row["status"] = f"failed: {type(e).__name__}: {str(e)[:200]}"
+            annotate(f"{kind} pull at {stamp:%Y-%m-%d %H:%M} SGT {row['status']}")
         row.update(pull_seconds=round(time.monotonic() - start, 1), quota_retries=len(retries))
         append_manifest(directory / "manifest.csv", row)
         log(f"{kind} {stamp:%Y-%m-%d %H:%M} SGT: {row['rows']} rows, {row['quota_retries']} quota retries, "
