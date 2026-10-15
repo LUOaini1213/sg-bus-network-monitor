@@ -1,0 +1,90 @@
+name: collect bus arrivals
+# DataMall Bus Arrival (v3) at the 41 corridor stops in data/reference/busarrival_stops.csv, one sweep every
+# 2 minutes from 06:30 to 10:00 Singapore time on weekdays (src/busarrival.py has the call budget and backoff).
+# One job polls the whole morning and commits to data-collect every 15 minutes, so a cancelled or timed-out run
+# keeps what it already pushed. GitHub cron is UTC (Singapore is UTC+08:00, no daylight saving): 22:00 and
+# 22:25 UTC from Sunday to Thursday night are 06:00 and 06:25 SGT. The second start covers a dropped or very late
+# first one; when the first is running it waits in the concurrency group and then finds the window closed.
+on:
+  schedule:
+    - cron: "0,25 22 * * 0-4"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Manual run: poll for this many minutes, starting now"
+        default: "20"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-bus-arrivals
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 260
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: code
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests numpy pandas
+      - name: Weekday morning, not a public holiday?
+        id: gate
+        env:
+          MINUTES: ${{ inputs.minutes || '20' }}
+        run: python code/src/busarrival.py gate ${{ github.event_name == 'workflow_dispatch' && '--force --minutes "$MINUTES"' || '' }}
+      - name: Check out data-collect (today's bus-arrival folder only)
+        if: steps.gate.outputs.collect == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: data-collect
+          path: store
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            data/raw/busarrival/${{ steps.gate.outputs.day }}
+      - name: Poll and commit every 15 minutes
+        if: steps.gate.outputs.collect == 'true'
+        env:
+          LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}
+          START: ${{ steps.gate.outputs.start }}
+          UNTIL: ${{ steps.gate.outputs.until }}
+        run: |
+          git -C store config user.name "github-actions[bot]"
+          git -C store config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          commit() {
+            ( cd store
+              [ -d data/raw/busarrival ] || { echo "no files yet"; return 0; }
+              git add -A data/raw/busarrival
+              if git diff --cached --quiet; then echo "nothing to commit"; return 0; fi
+              n=$(git diff --cached --name-only | grep -c 'ba_.*\.jsonl\.gz$' || true)
+              git commit -q -m "Bus arrivals $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M') SGT" -m "${n} sweeps"
+              for wait in 2 4 8 16 32; do
+                git push -q origin HEAD:data-collect && return 0
+                echo "push failed; retrying in ${wait} s on top of the latest data-collect"
+                sleep "$wait"
+                c=$(git rev-parse HEAD)
+                git fetch -q --depth=1 --filter=blob:none origin data-collect
+                git reset -q --hard FETCH_HEAD
+                git cherry-pick "$c"
+              done
+              return 1 )
+          }
+          first="--start $START"
+          while :; do
+            set +e
+            python code/src/busarrival.py poll --out store --until "$UNTIL" $first --chunk-minutes 15
+            rc=$?
+            set -e
+            first=""
+            commit
+            [ "$rc" -eq 0 ] || break
+          done
+          [ "$rc" -eq 10 ] && exit 0
+          exit "$rc"
