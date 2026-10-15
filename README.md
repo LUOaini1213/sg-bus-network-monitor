@@ -227,8 +227,8 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
   - 236 of 26,842 route rows skip a sequence number.
   - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
 - **Tests:**
-  - 232 tests, and `tests/mutate.py`, which makes 91 deliberate bugs that must each fail at least one test. CI runs both.
-  - The 58 mutants added for the collector (six of them for the GitHub Actions morning and night windows, holidays and quota backoff), the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
+  - 235 tests, and `tests/mutate.py`, which makes 93 deliberate bugs that must each fail at least one test. CI runs both.
+  - The 60 mutants added for the collector (eight of them for the GitHub Actions morning and night windows, holidays, quota backoff and the quota exit), the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
   - The finance tests evaluate the workbook's formulas without Excel (pycel) and compare 28 headline cells and the scenario grid with the Python model.
   - The check has found test gaps three times, and each was closed:
     - the first test set let 3 of 13 bugs through;
@@ -287,8 +287,9 @@ Raw data is not committed. `data/raw/` is rebuilt by the fetch commands above.
 
 From 16 October 2026 the weekday-morning and night snapshots are taken by GitHub Actions instead (`.github/workflows/collect.yml`):
 
-- **When.** Every 15 minutes from 06:30 to 10:00 Singapore time, Monday to Friday. GitHub cron runs on UTC, so the schedule is 22:30-02:00 UTC from Sunday to Thursday night. Two more pulls every night, at 01:10 and 03:10 (17:10 and 19:10 UTC), keep the priority screen's 22:00-05:00 night reference current. `python src/collect.py gate` re-checks both windows in Singapore time and skips morning pulls on the public holidays in `src/demand.py`. A manual run (`workflow_dispatch`) can force a pull outside the windows.
-- **What.** `python src/collect.py once` makes one speed-band pull and one incident poll per run. A "Rate limit quota violation" waits 60, 120 and then 240 seconds before the same page is asked for again. A pull that still fails is written to the day's manifest and fails the run, so it shows in the Actions list.
+- **When.** Every 15 minutes from 06:30 to 10:00 Singapore time, Monday to Friday. GitHub cron runs on UTC, so the schedule is 22:30-02:00 UTC from Sunday to Thursday night. Two more pulls every night, at 01:10 and 03:10 (17:10 and 19:10 UTC), keep the priority screen's 22:00-05:00 night reference current. `python src/collect.py gate` re-checks both windows in Singapore time and skips morning pulls on the public holidays in `src/demand.py`. A manual run (`workflow_dispatch`) always pulls, inside the windows or not.
+- **What.** `python src/collect.py once` makes one speed-band pull and one incident poll per run. A "Rate limit quota violation" waits 60 and then 120 seconds before the same page is asked for again (three tries in all). A pull still refused for quota is written to the day's manifest as failed, shows as a warning on the run, and the run exits 0; the next run is 15 minutes later. Any other failed pull, or a missing key, fails the run, so it shows in the Actions list.
 - **Where.** The `data-collect` branch, which shares no history with `main`. Each run is one commit: `data/raw/speedbands/YYYY-MM-DD/sb_YYYYMMDD_HHMM.csv.gz` (the same format as above) and a `manifest.csv` row with the time, row count and SHA-256, plus the incident poll under `data/raw/incidents/YYYY-MM-DD/`. Link geometry is kept once in `data/raw/speedbands/links/`.
 - **Key.** The repository secret `LTA_ACCOUNT_KEY` is passed to that one step as `LTA_KEY`. It is not printed or written to the branch.
+- **Stop.** Disable the workflow: Actions > collect speed bands > Disable workflow, or `gh workflow disable collect.yml -R LUOaini1213/sg-bus-network-monitor` (`gh workflow enable` resumes it). The data already on `data-collect` stays.
 - **Limits.** GitHub starts scheduled runs late when its runners are busy, sometimes by 10 minutes or more, and can drop runs. The snapshot minutes are therefore irregular, and the manifest is the record of what arrived. A run that starts more than 20 minutes after 10:00 is skipped. The holiday list covers 2026 only; in 2027 the collector warns and collects every weekday until the list is extended.

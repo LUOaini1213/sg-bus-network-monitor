@@ -24,8 +24,9 @@ GitHub Actions (.github/workflows/collect.yml) runs `gate` and then `once` every
 time on weekdays, and twice every night (01:10 and 03:10) for the night reference. `gate` converts the runner's UTC
 clock to Singapore time (UTC+08:00, no daylight saving) and skips weekend and public-holiday mornings
 (demand.HOLIDAYS_2026); night pulls run every night. `once` makes exactly one speed-band pull; a quota fault
-waits QUOTA_BACKOFF seconds and asks for the same page again, and a pull that still fails is recorded in the
-day's manifest.csv instead of being dropped silently. Files go under <out>/data/raw/speedbands/YYYY-MM-DD/ and
+waits QUOTA_BACKOFF seconds and asks for the same page again (three tries in all), and a pull that still fails is
+recorded in the day's manifest.csv instead of being dropped silently. A pull that ran out of quota is a warning
+and the run exits 0 (the next run is 15 minutes later); any other failed pull fails the run. Files go under <out>/data/raw/speedbands/YYYY-MM-DD/ and
 <out>/data/raw/incidents/YYYY-MM-DD/, which the workflow commits to the data-collect branch.
 """
 import argparse
@@ -59,7 +60,7 @@ SGT = dt.timezone(dt.timedelta(hours=8), "SGT")
 COLLECT_WINDOW = (dt.time(6, 30), dt.time(10, 0))
 NIGHT_WINDOW = (dt.time(22, 0), dt.time(5, 0))  # priority.NIGHT; two pulls a night, every night
 LATE_GRACE_MIN = 20  # GitHub starts scheduled runs late; a 10:00 run that starts at 10:12 still belongs to the morning
-QUOTA_BACKOFF = (60, 120, 240)
+QUOTA_BACKOFF = (60, 120)  # waits between the three tries of a page that hit the quota
 MANIFEST_COLUMNS = ["snapshot_sgt", "file", "rows", "sha256", "bytes", "pull_seconds", "quota_retries", "status"]
 LINK_COLUMNS = ["LinkID", "RoadName", "RoadCategory", "StartLon", "StartLat", "EndLon", "EndLat"]
 ECHO = False  # print log lines (GitHub Actions) instead of appending them to collector.log
@@ -178,10 +179,11 @@ def sgt_minute(now=None):
     return now.astimezone(SGT).replace(tzinfo=None, second=0, microsecond=0)
 
 
-def annotate(msg):
-    """An error annotation on the GitHub Actions run (readable without the job log); a log line elsewhere."""
+def annotate(msg, level="error"):
+    """An error (or warning) annotation on the GitHub Actions run (readable without the job log); a log line
+    elsewhere."""
     if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::error::{msg}", flush=True)
+        print(f"::{level}::{msg}", flush=True)
     log(msg)
 
 
@@ -234,7 +236,12 @@ def append_manifest(path, row):
 
 
 def once(out, stamp, expected_links=EXPECTED_LINKS, backoff=QUOTA_BACKOFF):
-    """One speed-band pull and one incident poll, each with a manifest row. Returns the number of failed pulls."""
+    """One speed-band pull and one incident poll, each with a manifest row.
+
+    Returns the number of pulls that failed for a reason other than the quota. A pull still refused for quota
+    after the backoff is recorded in the manifest and annotated as a warning, but is not counted: the quota is
+    DataMall's to give back, and the next scheduled run tries again.
+    """
     global ECHO
     ECHO = True
     key = os.environ.get("LTA_KEY")
@@ -244,7 +251,7 @@ def once(out, stamp, expected_links=EXPECTED_LINKS, backoff=QUOTA_BACKOFF):
     out = pathlib.Path(out)
     day = f"{stamp:%Y-%m-%d}"
     session = requests.Session()
-    failures, summary = 0, []
+    failures, quota, summary = 0, 0, []
     for kind, endpoint, workers in (("speedbands", "v4/TrafficSpeedBands", 4), ("incidents", "TrafficIncidents", 1)):
         directory = out / "data" / "raw" / kind / day
         retries, start = [], time.monotonic()
@@ -267,16 +274,20 @@ def once(out, stamp, expected_links=EXPECTED_LINKS, backoff=QUOTA_BACKOFF):
             note = f" (expected {expected_links})" if kind == "speedbands" and len(items) != expected_links else ""
             row.update(file=path.name, rows=len(items), sha256=hashlib.sha256(data).hexdigest(), bytes=len(data),
                        status="ok" + note)
-        except Exception as e:  # recorded in the manifest and the job log; the job fails after the commit
-            failures += 1
+        except Exception as e:  # recorded in the manifest and the job log
             row["status"] = f"failed: {type(e).__name__}: {str(e)[:200]}"
-            annotate(f"{kind} pull at {stamp:%Y-%m-%d %H:%M} SGT {row['status']}")
+            if isinstance(e, QuotaExceeded):  # out of quota after the backoff: a warning, the run exits 0
+                quota += 1
+                annotate(f"{kind} pull at {stamp:%Y-%m-%d %H:%M} SGT {row['status']}", "warning")
+            else:  # anything else fails the job after the commit
+                failures += 1
+                annotate(f"{kind} pull at {stamp:%Y-%m-%d %H:%M} SGT {row['status']}")
         row.update(pull_seconds=round(time.monotonic() - start, 1), quota_retries=len(retries))
         append_manifest(directory / "manifest.csv", row)
         log(f"{kind} {stamp:%Y-%m-%d %H:%M} SGT: {row['rows']} rows, {row['quota_retries']} quota retries, "
             f"{row['pull_seconds']} s, {row['status']}")
         summary.append(f"{kind} {row['rows']} rows {row['status'].split(':')[0]}")
-    github_output(summary="; ".join(summary), failures=failures)
+    github_output(summary="; ".join(summary), failures=failures, quota_failures=quota)
     return failures
 
 

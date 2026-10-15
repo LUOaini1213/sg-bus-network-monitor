@@ -104,6 +104,9 @@ MUTANTS = [
     ("collect.py", "if not lo <= t.time() <= end:", "if not lo <= t.time():", CO),
     ("collect.py", "if t.time() >= nlo or t.time() <= nhi:", "if nlo <= t.time() <= nhi:", CO),
     ("collect.py", "            time.sleep(wait)\n", "", CO),
+    # Quota exhausted after the backoff is a warning and exit 0; three tries, not four.
+    ("collect.py", "if isinstance(e, QuotaExceeded):", "if False:", CO),
+    ("collect.py", "QUOTA_BACKOFF = (60, 120)", "QUOTA_BACKOFF = (60, 120, 240)", CO),
     ("speed_cache.py", "np.where(band >= 8, lo + 5, (lo + hi + 1) / 2)", "np.where(band >= 8, lo + 4.5, (lo + hi + 1) / 2)",
      CO),
     ("speed_cache.py", "out[pos[pos_ok]] = v[pos_ok]", "out[pos[pos_ok]] = v[:pos_ok.sum()]", CO),

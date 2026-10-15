@@ -11,12 +11,7 @@ on:
     - cron: "*/15 0,1 * * 1-5"   # 08:00-09:45 SGT
     - cron: "0 2 * * 1-5"        # 10:00 SGT
     - cron: "10 17,19 * * *"     # 01:10 and 03:10 SGT, every night
-  workflow_dispatch:
-    inputs:
-      force:
-        description: "Pull even outside the weekday 06:30-10:00 SGT window or on a public holiday"
-        type: boolean
-        default: false
+  workflow_dispatch:   # a manual run always pulls, inside the windows or not
 
 permissions:
   contents: write
@@ -40,7 +35,7 @@ jobs:
       - run: pip install requests numpy pandas duckdb
       - name: Weekday morning, not a public holiday?
         id: gate
-        run: python code/src/collect.py gate ${{ inputs.force && '--force' || '' }}
+        run: python code/src/collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
       - name: Check out data-collect (today's folders only)
         if: steps.gate.outputs.collect == 'true'
         uses: actions/checkout@v4

@@ -287,12 +287,28 @@ def test_once_writes_one_snapshot_one_incident_poll_and_manifests(tmp_path, monk
     assert not any("secret-key" in p.read_bytes().decode("latin-1") for p in tmp_path.rglob("*") if p.is_file())
 
 
-def test_once_records_a_failed_pull_in_the_manifest(tmp_path, monkeypatch):
+def test_default_quota_backoff_is_three_tries_of_the_same_page(monkeypatch):
+    monkeypatch.setattr(collect.time, "sleep", lambda s: None)
+    monkeypatch.setattr(collect, "ECHO", True)
+    s = QuotaThenRows(10, faults=2)  # third try answers
+    assert len(collect.fetch_all(s, "k", "v4/TrafficSpeedBands", workers=1, backoff=collect.QUOTA_BACKOFF)) == 10
+    assert s.calls[:3] == [0, 0, 0]
+    s = QuotaThenRows(10, faults=3)  # three refusals: give up, no fourth call
+    with pytest.raises(collect.QuotaExceeded):
+        collect.fetch_all(s, "k", "v4/TrafficSpeedBands", workers=1, backoff=collect.QUOTA_BACKOFF)
+    assert s.calls == [0, 0, 0]
+
+
+def test_once_records_a_failed_pull_in_the_manifest(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("LTA_KEY", "k")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
     monkeypatch.setattr(collect.time, "sleep", lambda s: None)
     monkeypatch.setattr(collect.requests, "Session", lambda: QuotaThenRows(10, faults=10 ** 6))
     monkeypatch.setattr(collect, "ECHO", True)
-    assert collect.once(tmp_path, dt.datetime(2026, 10, 19, 8, 0), backoff=(1, 2)) == 2
+    # out of quota after the backoff: logged as a warning, not counted, so the run exits 0
+    assert collect.once(tmp_path, dt.datetime(2026, 10, 19, 8, 0), backoff=(1, 2)) == 0
+    out = capsys.readouterr().out
+    assert "::warning::speedbands pull" in out and "::error::" not in out
     m = pd.read_csv(tmp_path / "data" / "raw" / "speedbands" / "2026-10-19" / "manifest.csv")
     assert m.loc[0, "status"].startswith("failed: QuotaExceeded") and m.loc[0, "rows"] == 0
     assert m.loc[0, "quota_retries"] >= 2  # two waits on the first page; parallel pages may add their own
@@ -307,3 +323,27 @@ def test_missing_key_is_an_actions_error_annotation_and_writes_nothing(tmp_path,
         collect.once(tmp_path, dt.datetime(2026, 10, 19, 8, 0))
     assert "::error::LTA_KEY is empty" in capsys.readouterr().out
     assert not list(tmp_path.iterdir())
+
+
+def test_a_failed_pull_that_is_not_the_quota_fails_the_run(tmp_path, monkeypatch, capsys):
+    class Down(FakeSession):
+        def get(self, url, params, headers, timeout):
+            class R:
+                status_code, text = 503, "Service Unavailable"
+
+                def raise_for_status(self):
+                    raise collect.requests.HTTPError("503")
+            return R()
+    monkeypatch.setenv("LTA_KEY", "k")
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setattr(collect.time, "sleep", lambda s: None)
+    monkeypatch.setattr(collect.requests, "Session", lambda: Down(10))
+    monkeypatch.setattr(collect, "ECHO", True)
+    assert collect.once(tmp_path, dt.datetime(2026, 10, 19, 8, 0)) == 2
+    assert "::error::speedbands pull" in capsys.readouterr().out
+
+
+def test_a_manual_run_always_pulls():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "workflow_dispatch" in text
+    assert "collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}" in text
