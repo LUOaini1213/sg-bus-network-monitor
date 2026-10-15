@@ -250,7 +250,7 @@ def eta_accuracy(preds, by=()):
     p["abs_s"] = a
     p["within_60"] = a <= 60
     p["within_120"] = a <= 120
-    p["bus"] = p.stop + "|" + p.service + "|" + p.track.astype(str)
+    p["bus"] = list(zip(p.stop, p.service, p.track))
     g = p.groupby([*by, "horizon"], observed=True)
     out = g.agg(n=("error_s", "size"), buses=("bus", "nunique"), bias_s=("error_s", "mean"), median_error_s=("error_s", "median"), mae_s=("abs_s", "mean"),
                 p90_abs_s=("abs_s", lambda s: float(np.percentile(s, 90))),
