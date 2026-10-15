@@ -12,6 +12,7 @@ shares no history with `main`; the code that reads it lives there.
   coordinates), rewritten only when DataMall changes it.
 - `data/raw/incidents/YYYY-MM-DD/inc_YYYYMMDD_HHMM.jsonl.gz` and `manifest.csv`: one Traffic Incidents poll per run.
 
-Runs are every 15 minutes, 06:30-10:00 Singapore time, on weekdays that are not public holidays. GitHub starts
+Runs are every 15 minutes, 06:30-10:00 Singapore time, on weekdays that are not public holidays, plus two night
+pulls every night at 01:10 and 03:10 for the free-flow night reference. GitHub starts
 scheduled runs late at busy times, so the minutes in the file names are irregular; check the manifest for gaps.
 Source: LTA DataMall.
