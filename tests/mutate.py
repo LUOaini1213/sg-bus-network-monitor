@@ -20,6 +20,7 @@ CO = ["test_collect.py"]
 FC = ["test_forecast.py"]
 SF = ["test_safety.py"]
 FI = ["test_finance.py"]
+BA = ["test_busarrival.py", "test_busarrival_analysis.py"]
 MUTANTS = [
     ("corridors.py", "sum(nums[:2]) / len(nums[:2])", "max(nums[:2])"),
     ("corridors.py", "nums = [n for n in nums if n > 0]", "nums = nums"),
@@ -154,6 +155,39 @@ MUTANTS = [
     ("finance_workbook.py", '"=fy25_fare*1000000+old_days/365*fre2025_inc*bus_share"',
      '"=fy25_fare*1000000+old_days/365*fre2025_inc"', FI),
     ("finance_workbook.py", "feeder_now = f\"({blend_feeder('now')})\" if i == 0 else \"0\"", 'feeder_now = "0"', FI),
+    # Bus Arrival collector: paced calls, quota backoff, window.
+    ("busarrival.py", "lines, gap, t0 = [], period / len(stops), clock()", "lines, gap, t0 = [], 0, clock()", BA),
+    ("busarrival.py", "self.period = min(self.period * 2, self.max)", "self.period = self.period", BA),
+    ("busarrival.py", "if r.status_code == 429 or (", "if (", BA),
+    ("busarrival.py", "for s in stops[i + 1:]]", "for s in []]", BA),
+    ("busarrival.py", "if t.date() in holidays:", "if False:", BA),
+    ("busarrival.py", "if self.clean >= self.recover and self.period > self.base:", "if False:", BA),
+    ("busarrival.py", "            sleep(pause)\n", "", BA),
+    # Bus Arrival inference and metrics.
+    ("busarrival_analysis.py", 'if trk["how"] == "active" and e["monitored"] == 1 and e["eta"] <= t:',
+     'if trk["how"] == "active" and e["eta"] <= t:', BA),
+    ("busarrival_analysis.py", 'if (trk["last"] - t).total_seconds() <= GONE_SLACK_S:', "if True:", BA),
+    ("busarrival_analysis.py", "        cost += IMPLAUSIBLE_S * ", "        cost += 0 * ", BA),
+    ("busarrival_analysis.py", "if pairs else NO_MATCH_S", "if pairs else 0", BA),
+    ("busarrival_analysis.py", "if t_prev is not None and (t - t_prev).total_seconds() > MAX_GAP_S:", "if False:", BA),
+    ("busarrival_analysis.py", '"error_s": (mid - eta).total_seconds()', '"error_s": (eta - mid).total_seconds()', BA),
+    ("busarrival_analysis.py", 'mid = trk["lo"] + (trk["hi"] - trk["lo"]) / 2', 'mid = trk["hi"]', BA),
+    ("busarrival_analysis.py", "pd.cut(p.horizon_min, BINS, right=False, labels=BIN_LABELS)",
+     "pd.cut(p.horizon_min, BINS, right=True, labels=BIN_LABELS)", BA),
+    ("busarrival_analysis.py", "sd_min=lambda s: s.std(ddof=1)", "sd_min=lambda s: s.std(ddof=0)", BA),
+    ("busarrival_analysis.py", 'h["bunched"] = h.headway_min < fraction * h.reference_min',
+     'h["bunched"] = h.headway_min <= fraction * h.reference_min', BA),
+    ("busarrival_analysis.py", 'h["reference_min"] = sched.fillna(med)', 'h["reference_min"] = sched', BA),
+    ("busarrival_analysis.py", "if 6 * 60 + 30 <= m <= 8 * 60 + 30:", "if 6 * 60 + 30 <= m < 8 * 60 + 30:", BA),
+    ("busarrival_analysis.py", """            if kind == "break":
+                last = None""", """            if kind == "break":
+                pass""", BA),
+    ("busarrival_analysis.py", "            for svc in seen:", "            for svc in listed:", BA),
+    ("busarrival_analysis.py", "if best_cost is None or cost < best_cost:", "if best_cost is None or cost <= best_cost:", BA),
+    ("busarrival_analysis.py", "r = r[r.n >= min_n].copy()", "r = r.copy()", BA),
+    ("busarrival_analysis.py", 'if x.get("status") == "ok" and x.get("t") and not blank(x):',
+     'if x.get("status") == "ok" and x.get("t"):', BA),
+    ("busarrival_analysis.py", "                if eta > horizon_end:", "                if False:", BA),
 ]
 
 
