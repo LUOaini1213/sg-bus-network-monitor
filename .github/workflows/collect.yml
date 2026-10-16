@@ -1,17 +1,31 @@
 name: collect speed bands
-# One DataMall speed-band pull (288 paged calls) and one Traffic Incidents poll every 15 minutes, 06:30-10:00
-# Singapore time on weekdays. Singapore is UTC+08:00 with no daylight saving, and GitHub cron is UTC, so the
-# window is 22:30-02:00 UTC from Sunday to Thursday night. Two more pulls every night, 01:10 and 03:10 SGT, give
-# the bus-priority screen its free-flow night reference. src/collect.py gate re-checks both windows in Singapore
-# time and skips public-holiday mornings (demand.HOLIDAYS_2026). Snapshots are committed to the data-collect branch.
+# DataMall speed bands (288 paged calls) and one Traffic Incidents poll every 15 minutes, 06:30-10:00 Singapore
+# time on weekdays, from ONE job per morning that loops: pull, commit and push, wait for the next 15-minute slot.
+# GitHub delays and drops scheduled runs (on 16 October 2026 only the 08:36 and 08:50 SGT ones of fifteen ran),
+# so the morning has one trigger before the window and two backups at odd minutes: 22:20, 22:47 and 23:13 UTC from
+# Sunday to Thursday night are 06:20, 06:47 and 07:13 SGT (Singapore is UTC+08:00, no daylight saving). A backup
+# that fires while the loop runs waits in the concurrency group and then finds every slot taken in the day's
+# manifest; a backup that starts first runs the loop itself. Two more runs every night, 01:10 and 03:10 SGT, pull
+# once each for the bus-priority screen's free-flow night reference. src/collect.py gate decides in Singapore time
+# and skips public-holiday mornings (demand.HOLIDAYS_2026). Snapshots are committed to the data-collect branch.
 on:
   schedule:
-    - cron: "30,45 22 * * 0-4"   # 06:30, 06:45 SGT
-    - cron: "*/15 23 * * 0-4"    # 07:00-07:45 SGT
-    - cron: "*/15 0,1 * * 1-5"   # 08:00-09:45 SGT
-    - cron: "0 2 * * 1-5"        # 10:00 SGT
+    - cron: "20 22 * * 0-4"      # 06:20 SGT: the morning loop (waits for 06:30)
+    - cron: "47 22 * * 0-4"      # 06:47 SGT: backup
+    - cron: "13 23 * * 0-4"      # 07:13 SGT: backup
     - cron: "10 17,19 * * *"     # 01:10 and 03:10 SGT, every night
   workflow_dispatch:   # a manual run always pulls, inside the windows or not
+    inputs:
+      iterations:
+        description: "Pulls in the loop"
+        default: "1"
+      every_minutes:
+        description: "Minutes between pulls"
+        default: "15"
+      dry_run:
+        description: "Run the loop and its schedule without calling DataMall or committing"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -23,7 +37,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,7 +49,10 @@ jobs:
       - run: pip install requests numpy pandas duckdb
       - name: Weekday morning, not a public holiday?
         id: gate
-        run: python code/src/collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
+        env:
+          ITERATIONS: ${{ inputs.iterations || '1' }}
+          EVERY_MIN: ${{ inputs.every_minutes || '15' }}
+        run: python code/src/collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force --iterations "$ITERATIONS" --every "$((EVERY_MIN * 60))"' || '' }}
       - name: Check out data-collect (today's folders only)
         if: steps.gate.outputs.collect == 'true'
         uses: actions/checkout@v4
@@ -48,32 +65,52 @@ jobs:
             data/raw/speedbands/${{ steps.gate.outputs.day }}
             data/raw/speedbands/links
             data/raw/incidents/${{ steps.gate.outputs.day }}
-      - name: Pull speed bands and incidents
-        id: collect
+      - name: Pull, commit and push, then wait for the next slot
         if: steps.gate.outputs.collect == 'true'
         env:
           LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}
-        run: python code/src/collect.py once --out store --stamp "${{ steps.gate.outputs.stamp }}"
-      - name: Commit to data-collect
-        if: always() && steps.gate.outputs.collect == 'true' && steps.collect.outcome != 'skipped'
-        working-directory: store
-        env:
-          STAMP: ${{ steps.gate.outputs.stamp }}
-          SUMMARY: ${{ steps.collect.outputs.summary }}
+          START: ${{ steps.gate.outputs.start }}
+          UNTIL: ${{ steps.gate.outputs.until }}
+          EVERY: ${{ steps.gate.outputs.every }}
+          DAY: ${{ steps.gate.outputs.day }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ ! -d data ]; then echo "the pull wrote no files"; exit 0; fi
-          git add -A data
-          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
-          git commit -q -m "Speed bands ${STAMP/T/ } SGT" -m "${SUMMARY:-no summary}"
-          for wait in 2 4 8 16; do
-            git push -q origin HEAD:data-collect && exit 0
-            echo "push failed; retrying in ${wait} s on top of the latest data-collect"
-            sleep "$wait"
-            c=$(git rev-parse HEAD)
-            git fetch -q --depth=1 --filter=blob:none origin data-collect
-            git reset -q --hard FETCH_HEAD
-            git cherry-pick "$c"
+          git -C store config user.name "github-actions[bot]"
+          git -C store config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          commit() {  # one commit per pull, pushed at once, so a failure later in the morning loses nothing
+            ( cd store
+              [ -d data ] || { echo "the pull wrote no files"; return 0; }
+              git add -A data
+              if git diff --cached --quiet; then echo "nothing to commit"; return 0; fi
+              git commit -q -m "Speed bands ${1/T/ } SGT" -m "${2:-no summary}"
+              for wait in 2 4 8 16 32; do
+                git push -q origin HEAD:data-collect && return 0
+                echo "push failed; retrying in ${wait} s on top of the latest data-collect"
+                sleep "$wait"
+                c=$(git rev-parse HEAD)
+                git fetch -q --depth=1 --filter=blob:none origin data-collect
+                git reset -q --hard FETCH_HEAD
+                git cherry-pick "$c"
+              done
+              return 1 )
+          }
+          manifest="store/data/raw/speedbands/$DAY/manifest.csv"
+          first="--first $FORCE"
+          failed=0
+          pulls=0
+          while :; do
+            set +e
+            stamp=$(python code/src/collect.py next --start "$START" --until "$UNTIL" --every "$EVERY" --manifest "$manifest" $first)
+            rc=$?
+            set -e
+            [ "$rc" -eq 10 ] && break
+            [ "$rc" -eq 0 ] || exit "$rc"
+            first=""
+            pulls=$((pulls + 1))
+            if [ "$DRY_RUN" = true ]; then echo "dry run: pull $pulls would be stamped $stamp SGT"; continue; fi
+            python code/src/collect.py once --out store --stamp "$stamp" || failed=1
+            commit "$stamp" "$(sed -n 's/^summary=//p' "$GITHUB_OUTPUT" | tail -n 1)"
           done
-          exit 1
+          echo "$pulls pull(s) in this run"
+          exit "$failed"

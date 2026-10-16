@@ -194,18 +194,103 @@ def _cron_fires(expr, start, end):
     return out
 
 
-def test_workflow_cron_fires_on_weekday_mornings_every_15_minutes_and_twice_every_night():
+def test_workflow_cron_starts_one_morning_loop_with_two_backups_and_two_night_pulls():
     import re
-    crons = re.findall(r'cron:\s*"([^"]+)"', WORKFLOW.read_text(encoding="utf-8"))
+    text = WORKFLOW.read_text(encoding="utf-8")
+    crons = re.findall(r'cron:\s*"([^"]+)"', text)
     start = dt.datetime(2026, 10, 18, tzinfo=UTC)  # a Sunday; one full week
     fires = set().union(*(_cron_fires(c, start, start + dt.timedelta(days=7)) for c in crons))
     sgt = sorted(f.astimezone(collect.SGT).replace(tzinfo=None) for f in fires)
-    mornings = [dt.datetime(2026, 10, d, 6, 30) + dt.timedelta(minutes=15 * k)
-                for d in range(19, 24) for k in range(15)]
+    mornings = [dt.datetime(2026, 10, d, h, m) for d in range(19, 24) for h, m in ((6, 20), (6, 47), (7, 13))]
     nights = [dt.datetime(2026, 10, d, h, 10) for d in range(19, 26) for h in (1, 3)]  # 17:10, 19:10 UTC
     assert sgt == sorted(mornings + nights)
-    assert all(collect.collection_window(f)[0] for f in fires)
-    assert "LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}" in WORKFLOW.read_text(encoding="utf-8")
+    for f in mornings:   # every morning trigger runs the whole 06:30-10:00 loop
+        assert collect.loop_plan(f)[:3] == (True, f.replace(hour=6, minute=30), f.replace(hour=10, minute=0))
+    for f in nights:     # a night trigger pulls once
+        assert collect.loop_plan(f)[:3] == (True, f, f)
+    assert "LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}" in text
+    assert "timeout-minutes: 240" in text and "cancel-in-progress: false" in text
+
+
+# ---------------------------------------------------------------- the morning loop: plan, slots, stop
+M = dt.datetime(2026, 10, 19)   # a Monday
+
+
+def hm(h, m, s=0, day=M):
+    return day.replace(hour=h, minute=m, second=s)
+
+
+@pytest.mark.parametrize("now, plan", [
+    (hm(6, 20), (True, hm(6, 30), hm(10, 0))),
+    (hm(5, 45), (True, hm(6, 30), hm(10, 0))),       # up to 45 minutes early
+    (hm(5, 44), (False, None, None)),
+    (hm(8, 36), (True, hm(6, 30), hm(10, 0))),       # a late start still loops to 10:00
+    (hm(10, 20), (True, hm(6, 30), hm(10, 0))),
+    (hm(10, 21), (False, None, None)),
+    (hm(6, 20, day=dt.datetime(2026, 10, 24)), (False, None, None)),   # Saturday
+    (hm(6, 20, day=dt.datetime(2026, 11, 9)), (False, None, None)),    # holiday
+    (hm(1, 10, 40), (True, hm(1, 10), hm(1, 10))),   # night: one pull
+])
+def test_loop_plan(now, plan):
+    assert collect.loop_plan(now)[:3] == plan
+
+
+def test_manual_loop_plan_runs_the_given_number_of_pulls():
+    ok, start, until, _ = collect.loop_plan(hm(14, 3, 20), force=True, iterations=2, every=180)
+    assert (ok, start, until) == (True, hm(14, 3), hm(14, 6))
+    assert collect.next_pull(hm(14, 3, 30), start, until, 180, first=True, force=True) == hm(14, 3)
+    # a manual run pulls at once even right after another pull
+    assert collect.next_pull(hm(14, 3, 30), start, until, 180, done=[hm(14, 1)], first=True, force=True) == hm(14, 3)
+    assert collect.next_pull(hm(14, 3, 55), start, until, 180, done=[hm(14, 3)]) == hm(14, 6)
+    assert collect.next_pull(hm(14, 6, 50), start, until, 180, done=[hm(14, 3), hm(14, 6)]) is None
+
+
+def run_loop(now, done=(), until=hm(10, 0)):
+    """The pulls a morning loop makes from `now`, each taking 50 s, given pulls already in the manifest."""
+    done, made, first = list(done), [], True
+    while (t := collect.next_pull(now, hm(6, 30), until, 900, done, first)) is not None:
+        made.append(t)
+        done.append(t)
+        now, first = t + dt.timedelta(seconds=50), False
+    return made
+
+
+def test_a_loop_from_before_the_window_pulls_the_15_minute_grid_to_10_00():
+    made = run_loop(hm(6, 20, 5))
+    assert made == [hm(6, 30) + dt.timedelta(minutes=15 * k) for k in range(15)]
+
+
+def test_a_late_loop_pulls_at_once_then_joins_the_grid():
+    assert run_loop(hm(8, 36, 12)) == [hm(8, 36), hm(8, 45), hm(9, 0), hm(9, 15), hm(9, 30), hm(9, 45), hm(10, 0)]
+
+
+def test_a_backup_after_the_loop_pulls_nothing():
+    done = [hm(6, 30) + dt.timedelta(minutes=15 * k) for k in range(15)]
+    assert run_loop(hm(10, 1), done) == []
+    assert run_loop(hm(10, 12), done) == []           # within 15 minutes of the 10:00 pull
+    assert run_loop(hm(10, 16), [hm(9, 0)]) == [hm(10, 16)]   # GitHub started the only run late: one pull
+
+
+def test_a_slot_another_job_took_is_skipped_and_a_passed_slot_is_not_caught_up():
+    assert collect.next_pull(hm(6, 40), hm(6, 30), hm(10, 0), 900, done=[hm(6, 30), hm(6, 45)]) == hm(7, 0)
+    assert collect.next_pull(hm(6, 47, 30), hm(6, 30), hm(10, 0), 900, done=[hm(6, 30)]) == hm(7, 0)
+    assert collect.next_pull(hm(6, 45), hm(6, 30), hm(10, 0), 900, done=[hm(6, 30)]) == hm(6, 45)
+
+
+def test_done_pulls_reads_only_successful_rows(tmp_path):
+    m = tmp_path / "manifest.csv"
+    assert collect.done_pulls(m) == []
+    collect.append_manifest(m, {"snapshot_sgt": "2026-10-19T06:30", "status": "ok"})
+    collect.append_manifest(m, {"snapshot_sgt": "2026-10-19T06:45", "status": "failed: QuotaExceeded: x"})
+    collect.append_manifest(m, {"snapshot_sgt": "2026-10-19T07:00", "status": "ok (expected 143787)"})
+    assert collect.done_pulls(m) == [hm(6, 30), hm(7, 0)]
+
+
+def test_wait_until_sleeps_to_the_slot():
+    now = [hm(6, 20, 5)]
+    collect.wait_until(hm(6, 30), clock=lambda: now[0],
+                       sleep=lambda s: now.__setitem__(0, now[0] + dt.timedelta(seconds=s)))
+    assert now[0] == hm(6, 30)
 
 
 # ---------------------------------------------------------------- one pull per run: quota backoff and manifest
@@ -346,4 +431,6 @@ def test_a_failed_pull_that_is_not_the_quota_fails_the_run(tmp_path, monkeypatch
 def test_a_manual_run_always_pulls():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "workflow_dispatch" in text
-    assert "collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force' || '' }}" in text
+    assert "collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force --iterations" in text
+    ok, start, until, _ = collect.loop_plan(dt.datetime(2026, 10, 24, 13, 0), force=True)   # Saturday afternoon
+    assert ok and start == until

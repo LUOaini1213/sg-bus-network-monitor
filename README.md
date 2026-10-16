@@ -8,6 +8,7 @@ An open-data pipeline and dashboard for Singapore's public bus network. It cover
 - how many residents can reach a stop within 400 m;
 - which shared corridors are slow enough to screen for bus priority, and how stable that list is from morning to morning;
 - how far ahead speed bands can be forecast on the road graph;
+- how accurate the live bus arrival predictions are, and how regular the headways, on three trunk corridors;
 - what public data says about bus safety;
 - what the network earns and costs, and what fare changes would do.
 
@@ -15,7 +16,7 @@ An open-data pipeline and dashboard for Singapore's public bus network. It cover
 
 Data:
 
-- LTA DataMall: the September 2026 network; stop and origin-destination passenger volumes for February, June, July and August 2026; traffic speed bands.
+- LTA DataMall: the September 2026 network; stop and origin-destination passenger volumes for February, June, July and August 2026; traffic speed bands; Bus Arrival (v3) at 41 corridor stops.
 - URA Master Plan 2019.
 - SingStat General Household Survey 2025.
 - OpenStreetMap.
@@ -133,6 +134,36 @@ The dates and snapshot counts are stored with a hash of the displayed CSV in `ou
 - **AM peak.** Only three test slots fall in it: the graph net 3.86, persistence 3.88, LightGBM 4.14. There is no gain where congestion forms.
 - **How far this goes.** These numbers come from 15 test slots on one morning. The models were trained on 82 slots from five days of an irregular 18–20 minute archive, and graph-net training reached its 200-epoch cap. **This is not yet a credible general result.** The pipeline re-runs on the growing archive (`python src/forecast.py --test-from <date>`).
 
+### Bus arrival predictions and bunching (first sample, 15 October 2026)
+
+`src/busarrival.py` polls DataMall Bus Arrival at the 41 stops of three shared trunk corridors (Marine Parade Rd, Telok Blangah Rd, Orchard Rd) every 2 minutes, and `src/busarrival_analysis.py` scores the predictions against inferred arrivals.
+
+**What this sample is.** One manual run on Thursday 15 October 2026, 16:25–17:56 SGT: 45 sweeps, 1,845 calls, no failed call and no quota fault. That is the end of the off-peak and the first hour of the PM peak, on one afternoon. The scheduled runs cover 06:30–10:00 every weekday from 16 October, and these numbers will be replaced as mornings accumulate (`python src/busarrival_analysis.py`, outputs in `outputs/busarrival_*`).
+
+**How arrivals are inferred.** DataMall gives the next three predicted arrivals per service and no vehicle id. Successive lists are aligned to follow each bus. A bus has arrived between two answers when its GPS-based (monitored) ETA crosses zero, or when it leaves the list while it was due. A bus that drops out while still more than 2 minutes away, a gap of more than 5 minutes, or a blank answer gives no arrival and breaks the headway sequence. At this cadence each arrival is known to ±1 minute. The full rule is in the module docstring.
+
+- **Arrivals.** 3,830 inferred: 2,349 from a monitored ETA crossing zero and 1,481 from a bus leaving the list. 12 buses were dropped far from the stop and 35 tracks were cut by gaps.
+- **ETA error by horizon.** 29,926 predictions, scored only where the bus would still have been seen arriving 10 minutes late. Error is observed minus predicted, so positive means the bus came later than predicted.
+
+| Horizon | Predictions | MAE | Bias | Within ±1 min | Within ±2 min | 90th pct. abs. error |
+|---|---|---|---|---|---|---|
+| 0–2 min | 3,565 | 44 s | +25 s | 82.6% | 96.9% | 79 s |
+| 2–5 min | 4,859 | 53 s | +15 s | 66.7% | 92.0% | 113 s |
+| 5–10 min | 7,856 | 69 s | +19 s | 53.2% | 85.4% | 138 s |
+| 10–20 min | 13,646 | 99 s | +42 s | 40.0% | 70.3% | 204 s |
+
+- **Monitored against scheduled.** 18.1% of listed buses were not monitored, so their ETA comes from the schedule. They are much worse: an MAE of 168 s at 10–20 minutes, against 85 s for monitored buses, and 142 s against 37 s at 0–2 minutes.
+- **The inference rule moves the bias.** Arrivals inferred from a bus leaving the list carry +49 to +75 s of bias at every horizon, because a bus leaves the list after it has dwelt and departed. Arrivals from a monitored ETA crossing zero have a bias within ±7 s up to 10 minutes. Part of the overall positive bias is therefore the method, not the predictions. The 0–2 minute row also partly scores the system against its own at-the-stop estimate.
+- **Corridors.** The three corridors' MAEs are within 9 s of each other up to 10 minutes. At 10–20 minutes, Marine Parade Rd (MAE 108 s) is worse than Orchard Rd (97 s) and Telok Blangah Rd (91 s).
+- **Headway regularity.** 3,311 observed headways. 453 service-stop pairs have 4 or more. Their median coefficient of variation is **0.42**: 0.45 on Marine Parade Rd, 0.41 on Orchard Rd and 0.41 on Telok Blangah Rd.
+- **Bunching.** **5.7%** of headways were shorter than a quarter of the scheduled headway for the period: 7.1% on Marine Parade Rd, 5.1% on Orchard Rd and 4.6% on Telok Blangah Rd. Over 99% of headways had a scheduled reference. Against the median observed headway instead, the share is 3.7%.
+- **Data quality.**
+  - 27 of the 1,845 answers (1.5%) were HTTP 200 with no service listed at all, at stops whose answers just before and after listed a median of 12 services. Treated as "every bus left", they had produced 116 false "lost" buses in the first 16 minutes; they are now treated as missing answers.
+  - When a service was listed, its first ETA was never empty.
+  - Load codes: 94.7% "seats available" (SEA), 5.3% "standing available" (SDA), and no "limited standing" (LSD) in this sample.
+  - Every monitored bus had a position. All 11,436 unmonitored ones report 0.0, 0.0.
+  - Bus types: 57.7% single-deck, 42.3% double-deck, 0.02% bendy.
+
 ### Bus finance and fares
 
 An Excel workbook, [`outputs/bus_finance_model.xlsx`](outputs/bus_finance_model.xlsx), models the money side of the Bus Contracting Model from public sources. Inputs are blue; every other cell is a live formula. `src/finance_model.py` computes the same numbers in Python, and the tests evaluate the workbook's formulas and require them to agree to 1e-9. Method and sources: [`docs/BUS_FINANCE.md`](docs/BUS_FINANCE.md).
@@ -204,7 +235,9 @@ See [review evidence and reproduction details](docs/REVIEW_20261003.md).
 | Anomalies | `src/anomalies.py` | Evidence table per flagged stop: monthly series, service changes (renumbering aware), OD changes, category, and verified events from `data/reference/network_events_2026.csv` |
 | Coverage | `src/coverage.py`, `src/coverage_walk.py` | Dasymetric population; straight-line and walking-network reach |
 | Priority | `src/priority.py` | Matches 143,787 speed-band segments to bus links, then computes peak and night speeds and bus-hours lost |
-| Collector | `src/collect.py`, `.github/workflows/collect.yml` | Speed bands every 15 minutes and Traffic Incidents every 2 minutes, written atomically; `status` and `stop` subcommands. A full snapshot is 288 paged calls; at 5- and 10-minute cadences DataMall's call quota cut pulls off after 5-7 snapshots an hour. From 16 October 2026 GitHub Actions takes the weekday-morning and nightly snapshots (`gate` and `once` subcommands) and commits them to the `data-collect` branch |
+| Collector | `src/collect.py`, `.github/workflows/collect.yml` | Speed bands every 15 minutes and Traffic Incidents every 2 minutes, written atomically; `status` and `stop` subcommands. A full snapshot is 288 paged calls; at 5- and 10-minute cadences DataMall's call quota cut pulls off after 5-7 snapshots an hour. From 16 October 2026 GitHub Actions takes the weekday-morning and nightly snapshots (`gate`, `next` and `once` subcommands; one looping job per morning) and commits them to the `data-collect` branch |
+| Bus Arrival | `src/busarrival_stops.py`, `src/busarrival.py`, `.github/workflows/busarrival.yml` | Picks the 41 stops of three shared corridors from the corridor analysis, then polls DataMall v3/BusArrival at each one every 2 minutes on weekday mornings: one call every 2.9 s, never in bursts, with quota backoff. Sweeps go to the `data-collect` branch with a manifest |
+| Arrival accuracy | `src/busarrival_analysis.py` | Infers observed arrivals from successive next-bus lists, then reports ETA error by prediction horizon, headway regularity (coefficient of variation), bunching and data quality |
 | Speed cache | `src/speed_cache.py` | One compressed matrix per day of band speeds for the 39,017 links the analyses use; rebuilt only for days whose files changed |
 | Priority by morning | `src/priority_days.py` | The priority rule morning by morning, the median across mornings, and rank stability between mornings |
 | Forecasts | `src/forecast.py`, `src/forecast_gnn.py` | Persistence, historical average, LightGBM and a diffusion graph neural net on the expressway + bus-corridor road graph |
@@ -227,13 +260,15 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
   - 236 of 26,842 route rows skip a sequence number.
   - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
 - **Tests:**
-  - 235 tests, and `tests/mutate.py`, which makes 93 deliberate bugs that must each fail at least one test. CI runs both.
-  - The 60 mutants added for the collector (eight of them for the GitHub Actions morning and night windows, holidays, quota backoff and the quota exit), the multi-morning screen, the forecasts, the safety brief and the finance model run only the test files for their module.
+  - 294 tests, and `tests/mutate.py`, which makes 130 deliberate bugs that must each fail at least one test. CI runs both.
+  - The 97 mutants added for the collector (eight of them for the GitHub Actions morning and night windows, holidays, quota backoff and the quota exit, and 12 for the morning loop's slots, backups and stop), the multi-morning screen, the forecasts, the safety brief, the finance model and the Bus Arrival collector and analysis (25) run only the test files for their module.
   - The finance tests evaluate the workbook's formulas without Excel (pycel) and compare 28 headline cells and the scenario grid with the Python model.
   - The check has found test gaps three times, and each was closed:
     - the first test set let 3 of 13 bugs through;
     - the anomaly rules let 3 of 18 through;
     - the tests for this round's modules let 2 of 51 through: the AM window within a morning, and the cache's link alignment. A third mutant looped forever against the paging test double, which now ends.
+    - the first Bus Arrival tests let 1 of 23 through: the tie rule in the list alignment. A fixture with a tie now pins it.
+    - the morning-loop tests let 1 of 12 through: a manual run's first pull must ignore a pull made just before it.
 
 ### Limits of the numbers
 
@@ -243,6 +278,7 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
 - Speed coverage is estimated from matched segment lengths, not a union of road geometry. Band midpoint speeds and the resulting priority scores are screening approximations; the AM sample covers two mornings (28 September and 14 October 2026).
 - The finance model's fare-group and transfer shares are 2018–2021 proxies, and monthly and concession passes are not modelled. Its revenue is 17.6% above LTA's restated audited figure, and the README reports that gap rather than tuning it away.
 - Traffic Police bus counts cover all bus types, and there is no public bus-km series after 2014, so public-bus accident rates per bus-km after 2017 cannot be rebuilt.
+- Bus Arrival publishes predictions only, so observed arrivals are inferred from when a bus leaves the next-bus list or its monitored ETA crosses zero. At a 2-minute cadence each arrival is known to about ±1 minute, which is coarse against the 0–2 minute horizon, and part of that horizon scores the system against its own at-the-stop estimate. Headways and bunching come from these inferred arrivals, not from vehicle logs or the operators' fleet management systems.
 - A surveillance flag with no verified cause is a lead. It becomes a finding when a source or the next month confirms it.
 
 ## Run it
@@ -255,6 +291,8 @@ LTA_KEY=... python src/datamall.py static pv        # DataMall (free account key
 LTA_KEY=... python src/datamall.py od 202608 202607  # origin-destination volumes
 LTA_KEY=... python src/collect.py run --until 202610302359   # speed bands every 15 min, incidents every 2 min
 git fetch origin data-collect                       # weekday-morning and night snapshots from GitHub Actions (from 16 Oct 2026)
+git worktree add ../sgbus-data origin/data-collect  # Bus Arrival sweeps are under data/raw/busarrival/
+python src/busarrival_analysis.py --data ../sgbus-data/data/raw/busarrival   # ETA accuracy, headways, bunching
 python src/fetch_safety.py                          # SingStat / data.gov.sg safety and ridership tables
 python run_all.py                                   # walking network (first run), database, analyses, dashboard
 python src/forecast.py                              # forecasts (PyTorch: pip install torch)
@@ -273,6 +311,7 @@ python -m pytest -q tests && python tests/mutate.py
 - Traffic Police (Singapore Police Force): Traffic Annual 2025 and Road Traffic Accident Statistics 2004-2016. SingStat tables M651281, M651351 and C030012. LTA vehicle statistics MVP01-1 and data.gov.sg d_120bba76c28dd4706e0cf85693827e64 (daily bus-km, 2004-2014). Ministry of Transport replies and the Bus Safety Tripartite Taskforce report. Quoted text and URLs are in `data/reference/safety/public_bus_figures.csv`.
 - PTC fare review annexes 2024-2026, and the fares, passes and transfer-rule pages. LTA audited financial statements FY2020/21-FY2025/26 and bus contract award releases. MOT parliamentary replies on concession cards and senior-card trips. VTPI fare elasticities. Every source, with its quoted text, is in `data/reference/finance_sources.json`, `data/reference/finance_assumptions.json` and the workbook's Sources sheet.
 - LTA DataMall Traffic Incidents, archived by the collector from 13 October 2026.
+- LTA DataMall Bus Arrival v3, archived at 41 stops from 15 October 2026.
 
 Raw data is not committed. `data/raw/` is rebuilt by the fetch commands above.
 
@@ -287,9 +326,18 @@ Raw data is not committed. `data/raw/` is rebuilt by the fetch commands above.
 
 From 16 October 2026 the weekday-morning and night snapshots are taken by GitHub Actions instead (`.github/workflows/collect.yml`):
 
-- **When.** Every 15 minutes from 06:30 to 10:00 Singapore time, Monday to Friday. GitHub cron runs on UTC, so the schedule is 22:30-02:00 UTC from Sunday to Thursday night. Two more pulls every night, at 01:10 and 03:10 (17:10 and 19:10 UTC), keep the priority screen's 22:00-05:00 night reference current. `python src/collect.py gate` re-checks both windows in Singapore time and skips morning pulls on the public holidays in `src/demand.py`. A manual run (`workflow_dispatch`) always pulls, inside the windows or not.
-- **What.** `python src/collect.py once` makes one speed-band pull and one incident poll per run. A "Rate limit quota violation" waits 60 and then 120 seconds before the same page is asked for again (three tries in all). A pull still refused for quota is written to the day's manifest as failed, shows as a warning on the run, and the run exits 0; the next run is 15 minutes later. Any other failed pull, or a missing key, fails the run, so it shows in the Actions list.
-- **Where.** The `data-collect` branch, which shares no history with `main`. Each run is one commit: `data/raw/speedbands/YYYY-MM-DD/sb_YYYYMMDD_HHMM.csv.gz` (the same format as above) and a `manifest.csv` row with the time, row count and SHA-256, plus the incident poll under `data/raw/incidents/YYYY-MM-DD/`. Link geometry is kept once in `data/raw/speedbands/links/`.
+- **When.** Every 15 minutes from 06:30 to 10:00 Singapore time, Monday to Friday, from **one job per morning that loops** (changed on 16 October 2026). That morning GitHub ran only 2 of the 15 scheduled 15-minute runs (08:36 and 08:50 SGT): it delays and drops scheduled runs. Now one trigger at 06:20 SGT (22:20 UTC, Sunday to Thursday) starts a job that waits for 06:30, then pulls, commits and pushes, and sleeps until the next slot on the 06:30 + 15-minute grid, until the 10:00 pull (timeout 240 minutes). Two backup triggers at 06:47 and 07:13 SGT run in the same concurrency group, so they cannot run beside the loop. A backup that runs after the loop finds every slot already in the day's manifest and pulls nothing. A backup that starts first, because the first trigger was dropped, runs the loop itself: it pulls at once, then joins the grid. Slots are planned by `python src/collect.py next`: a slot within 7.5 minutes of a pull already in the manifest is skipped, and a slot that has passed during a long pull or a quota wait is not caught up. Two more runs every night, at 01:10 and 03:10 (17:10 and 19:10 UTC), pull once each for the priority screen's 22:00-05:00 night reference. `python src/collect.py gate` decides in Singapore time and skips morning pulls on the public holidays in `src/demand.py`. A manual run (`workflow_dispatch`) always pulls: `-f iterations=2 -f every_minutes=3` makes two pulls 3 minutes apart, and `-f dry_run=true` runs the schedule without calling DataMall or committing.
+- **What.** `python src/collect.py once` makes one speed-band pull and one incident poll per slot. A "Rate limit quota violation" waits 60 and then 120 seconds before the same page is asked for again (three tries in all). A pull still refused for quota is written to the day's manifest as failed, shows as a warning on the run, and the loop carries on to the next slot. Any other failed pull, or a missing key, fails the run when the loop ends, so it shows in the Actions list.
+- **Where.** The `data-collect` branch, which shares no history with `main`. Each pull is one commit, pushed at once, so a failure later in the morning loses nothing: `data/raw/speedbands/YYYY-MM-DD/sb_YYYYMMDD_HHMM.csv.gz` (the same format as above) and a `manifest.csv` row with the time, row count and SHA-256, plus the incident poll under `data/raw/incidents/YYYY-MM-DD/`. Link geometry is kept once in `data/raw/speedbands/links/`.
 - **Key.** The repository secret `LTA_ACCOUNT_KEY` is passed to that one step as `LTA_KEY`. It is not printed or written to the branch.
 - **Stop.** Disable the workflow: Actions > collect speed bands > Disable workflow, or `gh workflow disable collect.yml -R LUOaini1213/sg-bus-network-monitor` (`gh workflow enable` resumes it). The data already on `data-collect` stays.
-- **Limits.** GitHub starts scheduled runs late when its runners are busy, sometimes by 10 minutes or more, and can drop runs. The snapshot minutes are therefore irregular, and the manifest is the record of what arrived. A run that starts more than 20 minutes after 10:00 is skipped. The holiday list covers 2026 only; in 2027 the collector warns and collects every weekday until the list is extended.
+- **Limits.** GitHub starts scheduled runs late when its runners are busy, sometimes by two hours, and can drop runs. If all three morning triggers are late, the morning starts late, and the manifest is the record of what arrived. A morning run that starts more than 20 minutes after 10:00 is skipped; one that starts between 10:00 and 10:20 makes one pull, unless the manifest already has a pull in the last 15 minutes. The holiday list covers 2026 only; in 2027 the collector warns and collects every weekday until the list is extended.
+
+The Bus Arrival sample has its own workflow (`.github/workflows/busarrival.yml`, from 15 October 2026):
+
+- **Which stops.** `python src/busarrival_stops.py` writes `data/reference/busarrival_stops.csv`: every stop at an end of a 10+-service link on Marine Parade Rd (19 stops; the most kilometres of such links), Telok Blangah Rd (13; third) and Orchard Rd (9; the busiest single link). Yio Chu Kang Rd, second by length, is left out to keep the call budget down. `data/reference/busarrival_services.csv` lists the 656 stop-services with their scheduled headway bands from the 26 September 2026 BusServices pull.
+- **When.** One job per weekday morning. Cron starts it at 06:00 SGT, with backup triggers at 06:27, 06:53 and 07:19 in the same concurrency group (on 16 October the 06:00 run started at 07:58). It waits for 06:30 and sweeps until 10:00, committing to `data-collect` every 15 minutes so a cancelled run keeps what it pushed. `python src/busarrival.py gate` skips weekends and the public holidays in `src/demand.py`. A manual run polls for the number of minutes given (`gh workflow run busarrival.yml -f minutes=20`).
+- **Call budget.** One call per stop, one at a time, spread evenly over the 120-second sweep: one call every 2.9 s, 1,230 calls an hour, about 4,300 a morning. DataMall does not publish its quota; speed-band pulls failed at 1,440–2,016 calls an hour made in bursts of four parallel requests, while a 2-minute incident poll kept working through the same hours. A quota fault (HTTP 429, or an error body that mentions the quota) ends the sweep, records the remaining stops as skipped, pauses 60, then 120, then 240 s, and doubles the period up to 480 s; five clean sweeps halve it again. On 15 October a speed-band pull (288 calls) ran during the manual Bus Arrival run, and neither saw a quota fault.
+- **Where.** `data/raw/busarrival/YYYY-MM-DD/ba_YYYYMMDD_HHMMSS.jsonl.gz`, one line per stop with the arrival time of the answer and DataMall's `Services` list as returned, and a `manifest.csv` row per sweep (period, calls ok / failed / skipped / quota, services listed, SHA-256).
+- **Key.** The same `LTA_ACCOUNT_KEY` secret, passed only to the polling step and sent only as the `AccountKey` header.
+- **Stop.** `gh workflow disable busarrival.yml -R LUOaini1213/sg-bus-network-monitor`.

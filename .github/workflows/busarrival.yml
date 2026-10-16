@@ -2,12 +2,17 @@ name: collect bus arrivals
 # DataMall Bus Arrival (v3) at the 41 corridor stops in data/reference/busarrival_stops.csv, one sweep every
 # 2 minutes from 06:30 to 10:00 Singapore time on weekdays (src/busarrival.py has the call budget and backoff).
 # One job polls the whole morning and commits to data-collect every 15 minutes, so a cancelled or timed-out run
-# keeps what it already pushed. GitHub cron is UTC (Singapore is UTC+08:00, no daylight saving): 22:00 and
-# 22:25 UTC from Sunday to Thursday night are 06:00 and 06:25 SGT. The second start covers a dropped or very late
-# first one; when the first is running it waits in the concurrency group and then finds the window closed.
+# keeps what it already pushed. GitHub cron is UTC (Singapore is UTC+08:00, no daylight saving): 22:00 UTC from
+# Sunday to Thursday night is 06:00 SGT. GitHub delays and drops scheduled runs (on 16 October 2026 the first
+# one started at 07:58 SGT), so three backups follow at odd minutes (06:27, 06:53, 07:19 SGT). A backup that
+# fires while a job is polling waits in the concurrency group and then finds the window closed; one that fires
+# first polls from when it starts.
 on:
   schedule:
-    - cron: "0,25 22 * * 0-4"
+    - cron: "0 22 * * 0-4"       # 06:00 SGT: the morning job (waits for 06:30)
+    - cron: "27 22 * * 0-4"      # 06:27 SGT: backup
+    - cron: "53 22 * * 0-4"      # 06:53 SGT: backup
+    - cron: "19 23 * * 0-4"      # 07:19 SGT: backup
   workflow_dispatch:
     inputs:
       minutes:

@@ -171,7 +171,15 @@ def test_chunk_returns_and_keeps_the_period(tmp_path):
 def test_workflow_uses_the_secret_only_in_the_poll_step():
     text = (ROOT / ".github" / "workflows" / "busarrival.yml").read_text(encoding="utf-8")
     assert text.count("secrets.LTA_ACCOUNT_KEY") == 1
-    assert 'cron: "0,25 22 * * 0-4"' in text   # 06:00 and 06:25 SGT, Monday to Friday
+    import re
+    crons = re.findall(r'cron:\s*"([^"]+)"', text)
+    assert crons == ["0 22 * * 0-4", "27 22 * * 0-4", "53 22 * * 0-4", "19 23 * * 0-4"]   # Sun-Thu UTC
+    for c in crons:   # 06:00, 06:27, 06:53 and 07:19 SGT on a Monday: every trigger can start the morning
+        m, h = map(int, c.split()[:2])
+        fired = dt.datetime(2026, 10, 18, h, m, tzinfo=dt.timezone.utc)
+        start, until, _ = ba.window(fired)
+        assert (start, until) == (max(sgt(6, 30, day=19), fired), sgt(10, 0, day=19))
+    assert "group: collect-bus-arrivals" in text and "cancel-in-progress: false" in text
     assert "echo $LTA_KEY" not in text and "set -x" not in text
 
 

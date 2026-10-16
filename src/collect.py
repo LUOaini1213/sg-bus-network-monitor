@@ -5,6 +5,7 @@
     python src/collect.py stop                          # asks the running collector to exit (within ~10 s)
     python src/collect.py gate [--force]                # GitHub Actions: is now a weekday 06:30-10:00 SGT morning?
     python src/collect.py once --out DIR --stamp T      # GitHub Actions: one speed-band pull + one incident poll
+    python src/collect.py next --start T --until T --manifest F [--first]   # GitHub Actions loop: wait, print stamp
 
 Speed bands: one snapshot every --speed-every seconds (default 900), written
 atomically to data/raw/datamall/speedbands/sb_YYYYMMDD_HHMM.csv.gz in the same format as the older 15-minute
@@ -20,8 +21,9 @@ archive starts on the day the collector starts.
 Timestamps are the machine's local time, which is UTC+08:00 (the same offset as Singapore).
 The AccountKey is read from LTA_KEY at start-up and never written anywhere.
 
-GitHub Actions (.github/workflows/collect.yml) runs `gate` and then `once` every 15 minutes, 06:30-10:00 Singapore
-time on weekdays, and twice every night (01:10 and 03:10) for the night reference. `gate` converts the runner's UTC
+GitHub Actions (.github/workflows/collect.yml) runs one job per weekday morning that loops `next` (wait for the next
+slot on the 15-minute grid from 06:30, skipping slots another job already pulled) and `once` until the 10:00 pull,
+and a single pull twice every night (01:10 and 03:10) for the night reference. `gate` (loop_plan) converts the runner's UTC
 clock to Singapore time (UTC+08:00, no daylight saving) and skips weekend and public-holiday mornings
 (demand.HOLIDAYS_2026); night pulls run every night. `once` makes exactly one speed-band pull; a quota fault
 waits QUOTA_BACKOFF seconds and asks for the same page again (three tries in all), and a pull that still fails is
@@ -36,6 +38,7 @@ import gzip
 import hashlib
 import io
 import json
+import math
 import os
 import pathlib
 import sys
@@ -61,6 +64,8 @@ COLLECT_WINDOW = (dt.time(6, 30), dt.time(10, 0))
 NIGHT_WINDOW = (dt.time(22, 0), dt.time(5, 0))  # priority.NIGHT; two pulls a night, every night
 LATE_GRACE_MIN = 20  # GitHub starts scheduled runs late; a 10:00 run that starts at 10:12 still belongs to the morning
 QUOTA_BACKOFF = (60, 120)  # waits between the three tries of a page that hit the quota
+EARLY_MIN = 45  # a morning loop job may start up to 45 minutes before 06:30 and waits for it
+LOOP_EVERY = 900  # seconds between the morning loop's pulls (the 15-minute grid from 06:30)
 MANIFEST_COLUMNS = ["snapshot_sgt", "file", "rows", "sha256", "bytes", "pull_seconds", "quota_retries", "status"]
 LINK_COLUMNS = ["LinkID", "RoadName", "RoadCategory", "StartLon", "StartLat", "EndLon", "EndLat"]
 ECHO = False  # print log lines (GitHub Actions) instead of appending them to collector.log
@@ -171,6 +176,73 @@ def collection_window(now, holidays=HOLIDAYS_2026, window=COLLECT_WINDOW, grace_
     if t.year not in {d.year for d in holidays}:
         return True, f"no public holiday list for {t.year} in the repository; collecting anyway"
     return True, f"{t:%a %Y-%m-%d %H:%M} SGT is a weekday morning"
+
+
+def loop_plan(now, force=False, iterations=1, every=LOOP_EVERY, holidays=HOLIDAYS_2026, early_min=EARLY_MIN):
+    """(collect?, start, until, reason) for the pull loop of a run starting at `now` (naive Singapore times).
+
+    A weekday morning: one job pulls on the 15-minute grid from 06:30 to 10:00, so it may start up to early_min
+    minutes before 06:30 (it waits) or late (it pulls at once, then joins the grid). A night run (the priority
+    screen's free-flow reference) pulls once. A manual run (force) pulls `iterations` times, `every` seconds
+    apart, starting now.
+    """
+    t = (now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now).replace(second=0, microsecond=0)
+    if force:
+        return True, t, t + dt.timedelta(seconds=every * (iterations - 1)), f"manual run: {iterations} pull(s)"
+    ok, reason = collection_window(t, holidays)
+    lo, hi = COLLECT_WINDOW
+    start, until = dt.datetime.combine(t.date(), lo), dt.datetime.combine(t.date(), hi)
+    nlo, nhi = NIGHT_WINDOW
+    if ok and (t.time() >= nlo or t.time() <= nhi):
+        return True, t, t, reason
+    if ok or (t.weekday() < 5 and t.date() not in holidays
+              and start - dt.timedelta(minutes=early_min) <= t < start):
+        return True, start, until, f"{t:%a %Y-%m-%d %H:%M} SGT: morning loop {lo:%H:%M}-{hi:%H:%M}"
+    return False, None, None, reason
+
+
+def next_pull(now, start, until, every=LOOP_EVERY, done=(), first=False, grace_min=LATE_GRACE_MIN, force=False):
+    """When the loop pulls next (a naive Singapore minute), or None when it should stop.
+
+    The first pull of a job is at once (not before `start`), and may be up to grace_min minutes past `until`
+    for a run that GitHub started late, unless another job pulled within the last `every` seconds (a backup
+    trigger that ran after the loop). Later pulls are on the grid start + k * every, never past `until`, skipping
+    any slot within every / 2 of a pull already in the day's manifest (`done`), so two jobs never pull twice.
+    A slot that has passed (a long pull, a quota backoff) is skipped, not caught up.
+    """
+    step = dt.timedelta(seconds=every)
+
+    def near(x, gap):
+        return any(abs(x - d) < gap for d in done)
+
+    if first:
+        x = max(now.replace(second=0, microsecond=0), start)
+        if x <= until + dt.timedelta(minutes=grace_min) and (force or not near(x, step)):
+            return x
+    k = math.ceil(max((now - start).total_seconds(), 0) / every)
+    x = start + k * step
+    while x <= until:
+        if not near(x, step / 2):
+            return x
+        x += step
+    return None
+
+
+def done_pulls(manifest):
+    """Snapshot times of the successful pulls in a day's manifest.csv (empty when there is none yet)."""
+    path = pathlib.Path(manifest)
+    if not path.exists():
+        return []
+    with open(path, newline="", encoding="utf-8") as f:
+        return [dt.datetime.strptime(r["snapshot_sgt"], "%Y-%m-%dT%H:%M") for r in csv.DictReader(f)
+                if r.get("status", "").startswith("ok")]
+
+
+def wait_until(t, clock=None, sleep=time.sleep):
+    """Sleep until naive Singapore time t."""
+    clock = clock or (lambda: dt.datetime.now(SGT).replace(tzinfo=None))
+    while (left := (t - clock()).total_seconds()) > 0:
+        sleep(min(left, 60))
 
 
 def sgt_minute(now=None):
@@ -376,6 +448,15 @@ if __name__ == "__main__":
     sub.add_parser("stop")
     g = sub.add_parser("gate", help="is now a weekday 06:30-10:00 SGT morning that is not a public holiday?")
     g.add_argument("--force", action="store_true", help="collect anyway (manual runs)")
+    g.add_argument("--iterations", type=int, default=1, help="manual runs: pulls in the loop")
+    g.add_argument("--every", type=int, default=LOOP_EVERY, help="manual runs: seconds between pulls")
+    nx = sub.add_parser("next", help="GitHub Actions loop: wait for the next pull and print its stamp")
+    nx.add_argument("--start", required=True)
+    nx.add_argument("--until", required=True)
+    nx.add_argument("--every", type=int, default=LOOP_EVERY)
+    nx.add_argument("--manifest", required=True, help="the day's speed-band manifest.csv")
+    nx.add_argument("--first", action="store_true")
+    nx.add_argument("--force", action="store_true", help="the first pull ignores earlier pulls (manual runs)")
     o = sub.add_parser("once", help="one speed-band pull and one incident poll")
     o.add_argument("--out", required=True, help="root of the data-collect checkout")
     o.add_argument("--stamp", help="snapshot time YYYY-mm-ddTHH:MM, Singapore (default: now)")
@@ -385,9 +466,21 @@ if __name__ == "__main__":
         run(dt.datetime.strptime(a.until, "%Y%m%d%H%M"), a.speed_every, a.incident_every, a.expected_links)
     elif a.cmd == "gate":
         stamp = sgt_minute()
-        ok, reason = collection_window(dt.datetime.now(dt.timezone.utc))
-        print(("collect: " if ok else "skip: ") + reason + (" (forced)" if a.force and not ok else ""))
-        github_output(collect=str(ok or a.force).lower(), stamp=f"{stamp:%Y-%m-%dT%H:%M}", day=f"{stamp:%Y-%m-%d}")
+        ok, start, until, reason = loop_plan(dt.datetime.now(dt.timezone.utc), a.force, a.iterations, a.every)
+        print(("collect: " if ok else "skip: ") + reason)
+        github_output(collect=str(ok).lower(), stamp=f"{stamp:%Y-%m-%dT%H:%M}", day=f"{stamp:%Y-%m-%d}",
+                      start=f"{start:%Y-%m-%dT%H:%M}" if ok else "", until=f"{until:%Y-%m-%dT%H:%M}" if ok else "",
+                      every=a.every if a.force else LOOP_EVERY)
+    elif a.cmd == "next":
+        fmt = "%Y-%m-%dT%H:%M"
+        now = dt.datetime.now(SGT).replace(tzinfo=None)
+        t = next_pull(now, dt.datetime.strptime(a.start, fmt), dt.datetime.strptime(a.until, fmt), a.every,
+                      done_pulls(a.manifest), a.first, force=a.force)
+        if t is None:
+            print("no pull left in this run", file=sys.stderr)
+            sys.exit(10)
+        wait_until(t)
+        print(f"{t:{fmt}}")
     elif a.cmd == "once":
         stamp = dt.datetime.strptime(a.stamp, "%Y-%m-%dT%H:%M") if a.stamp else sgt_minute()
         sys.exit(1 if once(a.out, stamp, a.expected_links) else 0)
