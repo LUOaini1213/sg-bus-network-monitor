@@ -178,12 +178,20 @@ def test_quality_report_and_full_run(tmp_path):
     lines[1]["services"][0]["NextBus2"]["Load"] = "LSD"
     lines[2]["services"][0]["NextBus2"]["Monitored"] = 0
     lines.append({"stop": "92041", "t": None, "status": "skipped", "http": None, "services": []})
-    ba.write_sweep(lines, dt.datetime(2026, 10, 16, 8, 0), tmp_path / "2026-10-16")
-    s, q = an.run(tmp_path, out=tmp_path / "out")
-    assert q["answer_status"] == {"ok": 4, "skipped": 1}
+    preds, _, trks = an.infer(lines)
+    q = an.quality(lines, trks, preds)
+    assert q["answer_status"] == {"ok": 4, "skipped": 1} and q["blank_answers"] == 0
     assert q["listed_buses"] == 8 and q["load_share"] == {"SEA": 7 / 8, "LSD": 1 / 8}
     assert q["monitored_share"] == 7 / 8 and q["nextbus_missing_eta_share"] == 0.0
-    assert s["arrivals"]["gone"] == 1
+    lines += [answer(m, [13.4, 23]) for m in (8, 10, 12)] + [answer(m, [23, 33]) for m in range(14, 21, 2)]
+    ba.write_sweep(lines, dt.datetime(2026, 10, 16, 8, 0), tmp_path / "2026-10-16")
+    s, q = an.run(tmp_path, out=tmp_path / "out")
+    assert s["arrivals"]["gone"] == 2 and q["answers"] == 12
     for f in ("busarrival_eta_accuracy.csv", "busarrival_headways.csv", "busarrival_bunching.csv",
               "busarrival_quality.json", "busarrival_summary.json"):
         assert (tmp_path / "out" / f).exists()
+    acc = pd.read_csv(tmp_path / "out" / "busarrival_eta_accuracy.csv")
+    assert set(acc.corridor) == {"all", "Marine Parade Rd"}   # stop 92041 is on Marine Parade Rd
+    assert set(acc.rule) == {"all", "gone"}
+    overall = acc[(acc.corridor == "all") & (acc.monitored.astype(str) == "all") & (acc.rule == "all")]
+    assert overall.n.sum() == acc[acc.corridor != "all"].n.sum() == 2

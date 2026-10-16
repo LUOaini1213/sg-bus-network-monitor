@@ -342,6 +342,9 @@ def run(data, days=None, out=OUT):
     preds, heads, trks = infer(lines)
     acc = eta_accuracy(preds)
     acc_m = eta_accuracy(preds, by=("monitored",))
+    stops = pd.read_csv(STOPS_CSV, dtype={"BusStopCode": str}).set_index("BusStopCode").corridor
+    acc_c = eta_accuracy(preds.assign(corridor=preds.stop.map(stops).fillna("other")), by=("corridor",))
+    acc_r = eta_accuracy(preds.rename(columns={"how": "rule"}), by=("rule",))
     reg = regularity(heads)
     bun = bunching(heads, scheduled_headways())
     q = quality(lines, trks, preds)
@@ -351,6 +354,7 @@ def run(data, days=None, out=OUT):
         "days": sorted({t.date().isoformat() for t in times}),
         "arrivals": {k: int(v) for k, v in trks.how.value_counts().items()},
         "eta": acc.to_dict("records"), "eta_by_monitored": acc_m.to_dict("records"),
+        "eta_by_corridor": acc_c.to_dict("records"), "eta_by_rule": acc_r.to_dict("records"),
         "headways": int(len(heads)), "stop_services_with_cv": int(len(reg)),
         "median_cv": float(reg.cv.median()) if len(reg) else None,
         "bunched_share": float(bun.bunched.mean()) if len(bun) else None,
@@ -361,10 +365,11 @@ def run(data, days=None, out=OUT):
     }
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    pd.concat([acc.assign(monitored="all"), acc_m], ignore_index=True).to_csv(out / "busarrival_eta_accuracy.csv",
-                                                                              index=False)
-    reg.to_csv(out / "busarrival_headways.csv", index=False)
-    stops = pd.read_csv(STOPS_CSV, dtype={"BusStopCode": str}).set_index("BusStopCode").corridor
+    tables = [acc, acc_m, acc_c, acc_r]
+    pd.concat([t.reindex(columns=["monitored", "corridor", "rule", *acc.columns]) for t in tables],
+              ignore_index=True).fillna({"monitored": "all", "corridor": "all", "rule": "all"}).to_csv(
+        out / "busarrival_eta_accuracy.csv", index=False)
+    reg.assign(corridor=reg.stop.map(stops)).to_csv(out / "busarrival_headways.csv", index=False)
     if len(bun):
         b = bun.assign(corridor=bun.stop.map(stops)).groupby("corridor").agg(
             headways=("bunched", "size"), bunched_share=("bunched", "mean"),

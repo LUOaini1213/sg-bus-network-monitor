@@ -1,0 +1,30 @@
+{
+  "answers": 1845,
+  "answer_status": {
+    "ok": 1845
+  },
+  "blank_answers": 27,
+  "stop_service_answers": 21990,
+  "nextbus_missing_eta_share": 0.0,
+  "listed_buses": 63219,
+  "load_share": {
+    "SEA": 0.9471677818377386,
+    "SDA": 0.052832218162261343
+  },
+  "monitored_share": 0.8191050158971195,
+  "type_share": {
+    "SD": 0.5769309859377719,
+    "DD": 0.42287919770954935,
+    "BD": 0.00018981635267878327
+  },
+  "missing_position_share_monitored": 0.0,
+  "tracks": {
+    "zero": 2349,
+    "open": 1490,
+    "gone": 1481,
+    "gap": 35,
+    "lost": 12
+  },
+  "predictions": 41470,
+  "negative_horizon_share": 0.0005063901615625754
+}
