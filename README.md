@@ -134,35 +134,36 @@ The dates and snapshot counts are stored with a hash of the displayed CSV in `ou
 - **AM peak.** Only three test slots fall in it: the graph net 3.86, persistence 3.88, LightGBM 4.14. There is no gain where congestion forms.
 - **How far this goes.** These numbers come from 15 test slots on one morning. The models were trained on 82 slots from five days of an irregular 18–20 minute archive, and graph-net training reached its 200-epoch cap. **This is not yet a credible general result.** The pipeline re-runs on the growing archive (`python src/forecast.py --test-from <date>`).
 
-### Bus arrival predictions and bunching (first sample, 15 October 2026)
+### Bus arrival predictions and bunching (first morning, 16 October 2026)
 
 `src/busarrival.py` polls DataMall Bus Arrival at the 41 stops of three shared trunk corridors (Marine Parade Rd, Telok Blangah Rd, Orchard Rd) every 2 minutes, and `src/busarrival_analysis.py` scores the predictions against inferred arrivals.
 
-**What this sample is.** One manual run on Thursday 15 October 2026, 16:25–17:56 SGT: 45 sweeps, 1,845 calls, no failed call and no quota fault. That is the end of the off-peak and the first hour of the PM peak, on one afternoon. The scheduled runs cover 06:30–10:00 every weekday from 16 October, and these numbers will be replaced as mornings accumulate (`python src/busarrival_analysis.py`, outputs in `outputs/busarrival_*`).
+**What the sample is.** One weekday morning: Friday 16 October 2026, 07:58–10:00 SGT. That is 61 sweeps and 2,501 calls, with no failed call and no quota fault. GitHub started the 06:00 scheduled run two hours late, so the morning covers the last half hour of the AM peak (to 08:30) and the start of the off-peak. Four speed-band pulls ran during it on the same key, with no quota retry. One morning is a first measurement, not a result. The numbers will be replaced as weekday mornings accumulate (`python src/busarrival_analysis.py --days ...`; outputs in `outputs/busarrival_*`). A manual afternoon run on 15 October (16:25–17:56) is the comparison below.
 
-**How arrivals are inferred.** DataMall gives the next three predicted arrivals per service and no vehicle id. Successive lists are aligned to follow each bus. A bus has arrived between two answers when its GPS-based (monitored) ETA crosses zero, or when it leaves the list while it was due. A bus that drops out while still more than 2 minutes away, a gap of more than 5 minutes, or a blank answer gives no arrival and breaks the headway sequence. At this cadence each arrival is known to ±1 minute. The full rule is in the module docstring.
+**How arrivals are inferred.** DataMall gives the next three predicted arrivals per service, but no vehicle id. Successive lists are aligned to follow each bus. A bus has arrived between two answers when its GPS-based (monitored) ETA crosses zero, or when it leaves the list while it was due. No arrival is inferred, and the headway sequence breaks, when a bus drops out while still more than 2 minutes away, when answers are more than 5 minutes apart, or when an answer is blank. At this cadence each arrival is known to ±1 minute. The full rule is in the module docstring.
 
-- **Arrivals.** 3,830 inferred: 2,349 from a monitored ETA crossing zero and 1,481 from a bus leaving the list. 12 buses were dropped far from the stop and 35 tracks were cut by gaps.
-- **ETA error by horizon.** 29,926 predictions, scored only where the bus would still have been seen arriving 10 minutes late. Error is observed minus predicted, so positive means the bus came later than predicted.
+- **Arrivals.** 5,813 inferred: 3,807 from a monitored ETA crossing zero and 2,006 from a bus leaving the list. 17 buses were dropped far from the stop.
+- **ETA error by horizon.** 48,298 predictions. A prediction is scored only where the bus would still have been seen arriving 10 minutes late. Error is observed minus predicted, so positive means the bus came later than predicted.
 
-| Horizon | Predictions | MAE | Bias | Within ±1 min | Within ±2 min | 90th pct. abs. error |
-|---|---|---|---|---|---|---|
-| 0–2 min | 3,565 | 44 s | +25 s | 82.6% | 96.9% | 79 s |
-| 2–5 min | 4,859 | 53 s | +15 s | 66.7% | 92.0% | 113 s |
-| 5–10 min | 7,856 | 69 s | +19 s | 53.2% | 85.4% | 138 s |
-| 10–20 min | 13,646 | 99 s | +42 s | 40.0% | 70.3% | 204 s |
+| Horizon | Predictions | MAE | Bias | Within ±1 min | Within ±2 min | 90th pct. abs. error | 15 Oct afternoon MAE |
+|---|---|---|---|---|---|---|---|
+| 0–2 min | 5,603 | 39 s | +21 s | 83.2% | 98.0% | 79 s | 44 s |
+| 2–5 min | 8,111 | 54 s | +19 s | 65.3% | 90.7% | 116 s | 53 s |
+| 5–10 min | 12,771 | 73 s | +29 s | 49.6% | 82.4% | 150 s | 69 s |
+| 10–20 min | 21,813 | 106 s | +50 s | 37.8% | 66.5% | 220 s | 99 s |
 
-- **Monitored against scheduled.** 18.1% of listed buses were not monitored, so their ETA comes from the schedule. They are much worse: an MAE of 168 s at 10–20 minutes, against 85 s for monitored buses, and 142 s against 37 s at 0–2 minutes.
-- **The inference rule moves the bias.** Arrivals inferred from a bus leaving the list carry +49 to +75 s of bias at every horizon, because a bus leaves the list after it has dwelt and departed. Arrivals from a monitored ETA crossing zero have a bias within ±7 s up to 10 minutes. Part of the overall positive bias is therefore the method, not the predictions. The 0–2 minute row also partly scores the system against its own at-the-stop estimate.
-- **Corridors.** The three corridors' MAEs are within 9 s of each other up to 10 minutes. At 10–20 minutes, Marine Parade Rd (MAE 108 s) is worse than Orchard Rd (97 s) and Telok Blangah Rd (91 s).
-- **Headway regularity.** 3,311 observed headways. 453 service-stop pairs have 4 or more. Their median coefficient of variation is **0.42**: 0.45 on Marine Parade Rd, 0.41 on Orchard Rd and 0.41 on Telok Blangah Rd.
-- **Bunching.** **5.7%** of headways were shorter than a quarter of the scheduled headway for the period: 7.1% on Marine Parade Rd, 5.1% on Orchard Rd and 4.6% on Telok Blangah Rd. Over 99% of headways had a scheduled reference. Against the median observed headway instead, the share is 3.7%.
+- **Buses run later than predicted at long horizons.** Arrivals from a monitored ETA crossing zero are almost unbiased up to 5 minutes out (+3 to +4 s). The bias then grows to +13 s at 5–10 minutes and +34 s at 10–20 minutes.
+- **The inference rule moves the bias.** Arrivals inferred from a bus leaving the list carry +44 to +79 s of bias, because a bus leaves the list after it has dwelt and departed. Part of the overall positive bias is therefore the method, not the predictions. The 0–2 minute row also partly scores the system against its own at-the-stop estimate.
+- **Monitored against scheduled.** 17.5% of listed buses were not monitored, so their ETA comes from the schedule. They are worse at every horizon: an MAE of 137 s at 10–20 minutes against 101 s for monitored buses, and 78 s against 37 s at 0–2 minutes.
+- **Corridors.** The three corridors are within 5 s of each other up to 10 minutes. At 10–20 minutes Telok Blangah Rd is the worst (MAE 109 s), ahead of Orchard Rd (105 s) and Marine Parade Rd (103 s).
+- **Headway regularity.** 5,229 observed headways. 483 service-stop pairs have 4 or more. Their median coefficient of variation is **0.41**: 0.42 on Marine Parade Rd, 0.43 on Orchard Rd and 0.39 on Telok Blangah Rd. The afternoon's was 0.42.
+- **Bunching.** **6.0%** of headways were shorter than a quarter of the scheduled headway for the period. That is 5.1% of the 1,067 AM-peak headways and 6.3% in the off-peak. By corridor: 5.8% on Marine Parade Rd, 5.8% on Orchard Rd and 6.4% on Telok Blangah Rd. About 98% of headways had a scheduled reference. Against the median observed headway instead, the share is 4.2%. The afternoon's share was 5.7%.
 - **Data quality.**
-  - 27 of the 1,845 answers (1.5%) were HTTP 200 with no service listed at all, at stops whose answers just before and after listed a median of 12 services. Treated as "every bus left", they had produced 116 false "lost" buses in the first 16 minutes; they are now treated as missing answers.
+  - 15 of the 2,501 answers (0.6%) were HTTP 200 with no service listed at all; the afternoon had 27 of 1,845. On 15 October the stops around these blanks had listed a median of 12 services. Treated as "every bus left", the blanks had produced 116 false "lost" buses in the first 16 minutes of that afternoon's data. They are now treated as missing answers.
   - When a service was listed, its first ETA was never empty.
-  - Load codes: 94.7% "seats available" (SEA), 5.3% "standing available" (SDA), and no "limited standing" (LSD) in this sample.
-  - Every monitored bus had a position. All 11,436 unmonitored ones report 0.0, 0.0.
-  - Bus types: 57.7% single-deck, 42.3% double-deck, 0.02% bendy.
+  - Load codes: 91.9% "seats available" (SEA), 8.1% "standing available" (SDA) and 0.01% "limited standing" (LSD), against 94.7% / 5.3% / 0 in the afternoon.
+  - Every monitored bus had a position; unmonitored ones report 0.0, 0.0.
+  - Bus types: 58.2% single-deck, 41.7% double-deck, 0.1% bendy.
 
 ### Bus finance and fares
 
