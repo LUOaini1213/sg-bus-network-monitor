@@ -25,7 +25,8 @@ GitHub Actions (.github/workflows/collect.yml) runs one job per weekday morning 
 slot on the 15-minute grid from 06:30, skipping slots another job already pulled) and `once` until the 10:00 pull,
 and a single pull twice every night (01:10 and 03:10) for the night reference. `gate` (loop_plan) converts the runner's UTC
 clock to Singapore time (UTC+08:00, no daylight saving) and skips weekend and public-holiday mornings
-(demand.HOLIDAYS_2026); night pulls run every night. `once` makes exactly one speed-band pull; a quota fault
+(demand.HOLIDAYS_2026); night pulls run every night. GitHub starts scheduled runs up to two hours late, so the
+morning job is triggered from 04:10; it waits for 06:30, and a job that started early still ends inside its timeout. `once` makes exactly one speed-band pull; a quota fault
 waits QUOTA_BACKOFF seconds and asks for the same page again (three tries in all), and a pull that still fails is
 recorded in the day's manifest.csv instead of being dropped silently. A pull that ran out of quota is a warning
 and the run exits 0 (the next run is 15 minutes later); any other failed pull fails the run. Files go under <out>/data/raw/speedbands/YYYY-MM-DD/ and
@@ -64,7 +65,12 @@ COLLECT_WINDOW = (dt.time(6, 30), dt.time(10, 0))
 NIGHT_WINDOW = (dt.time(22, 0), dt.time(5, 0))  # priority.NIGHT; two pulls a night, every night
 LATE_GRACE_MIN = 20  # GitHub starts scheduled runs late; a 10:00 run that starts at 10:12 still belongs to the morning
 QUOTA_BACKOFF = (60, 120)  # waits between the three tries of a page that hit the quota
-EARLY_MIN = 45  # a morning loop job may start up to 45 minutes before 06:30 and waits for it
+EARLY_MIN = 150  # a morning loop job may start up to 150 minutes before 06:30 (04:00 SGT) and waits for it
+JOB_TIMEOUT_MIN = 355  # timeout-minutes of a morning job in collect.yml (GitHub-hosted jobs stop at 360)
+LAST_PULL_MIN = 5  # the last pull and its commit (pulls took 26-72 s on 19 October 2026)
+MAX_RUN_MIN = JOB_TIMEOUT_MIN - LAST_PULL_MIN  # a job's last pull starts at most 350 minutes after the job started
+NIGHT_CRON = "10 17,19 * * *"  # collect.yml's night trigger (01:10 and 03:10 SGT); every other cron is a morning one
+NIGHT_TIMEOUT_MIN = 30  # timeout-minutes of a night run, so one that GitHub started late holds the group briefly
 LOOP_EVERY = 900  # seconds between the morning loop's pulls (the 15-minute grid from 06:30)
 MANIFEST_COLUMNS = ["snapshot_sgt", "file", "rows", "sha256", "bytes", "pull_seconds", "quota_retries", "status"]
 LINK_COLUMNS = ["LinkID", "RoadName", "RoadCategory", "StartLon", "StartLat", "EndLon", "EndLat"]
@@ -156,14 +162,13 @@ def append_incidents(items, when, directory=INC_DIR):
 def collection_window(now, holidays=HOLIDAYS_2026, window=COLLECT_WINDOW, grace_min=LATE_GRACE_MIN,
                       night=NIGHT_WINDOW):
     """(collect?, reason) for a run starting at `now`: any night (22:00-05:00 SGT, the priority screen's night
-    reference), or a weekday that is not a public holiday, 06:30-10:00 SGT.
+    reference), or a weekday that is not a public holiday, 06:30-10:00 SGT. night=None checks the morning only.
 
     An aware `now` (the runner's UTC clock) is converted to Singapore time; a naive one is taken as Singapore time.
     The end of the morning window is extended by grace_min minutes because GitHub starts scheduled runs late.
     """
-    t = now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now
-    nlo, nhi = night
-    if t.time() >= nlo or t.time() <= nhi:
+    t = sgt_naive(now)
+    if night is not None and in_night(t, night):
         return True, f"{t:%a %Y-%m-%d %H:%M} SGT is a night pull (free-flow reference)"
     if t.weekday() >= 5:
         return False, f"{t:%a %Y-%m-%d} is a weekend day"
@@ -178,27 +183,73 @@ def collection_window(now, holidays=HOLIDAYS_2026, window=COLLECT_WINDOW, grace_
     return True, f"{t:%a %Y-%m-%d %H:%M} SGT is a weekday morning"
 
 
-def loop_plan(now, force=False, iterations=1, every=LOOP_EVERY, holidays=HOLIDAYS_2026, early_min=EARLY_MIN):
+def in_night(t, night=NIGHT_WINDOW):
+    """Is naive Singapore time t inside the night window (which wraps past midnight)?"""
+    nlo, nhi = night
+    return t.time() >= nlo or t.time() <= nhi
+
+
+def trigger_of(schedule):
+    """"night" or "morning" for the cron that started a scheduled run (github.event.schedule); None if unknown."""
+    if not schedule:
+        return None
+    return "night" if schedule.strip() == NIGHT_CRON else "morning"
+
+
+def sgt_naive(now):
+    return now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now
+
+
+def loop_plan(now, force=False, iterations=1, every=LOOP_EVERY, holidays=HOLIDAYS_2026, early_min=EARLY_MIN,
+              trigger=None, job_start=None, max_run_min=MAX_RUN_MIN):
     """(collect?, start, until, reason) for the pull loop of a run starting at `now` (naive Singapore times).
 
     A weekday morning: one job pulls on the 15-minute grid from 06:30 to 10:00, so it may start up to early_min
-    minutes before 06:30 (it waits) or late (it pulls at once, then joins the grid). A night run (the priority
-    screen's free-flow reference) pulls once. A manual run (force) pulls `iterations` times, `every` seconds
-    apart, starting now.
+    minutes before 06:30 (it waits) or late (it pulls at once, then joins the grid). Its last pull is at most
+    max_run_min minutes after `job_start` (default `now`), so a job that started very early still ends inside
+    timeout-minutes; a later trigger waiting in the concurrency group then takes the slots that are left. A
+    night run (the priority screen's free-flow reference) pulls once, and only inside the night window. A manual
+    run (force) pulls `iterations` times, `every` seconds apart, starting now.
+    `trigger` is "night" or "morning" (the cron that fired, see trigger_of). None infers it from the time: inside
+    the night window is a night run. From 04:00 to 05:00 both are possible, so the workflow passes the cron.
     """
-    t = (now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now).replace(second=0, microsecond=0)
+    t = sgt_naive(now).replace(second=0, microsecond=0)
     if force:
         return True, t, t + dt.timedelta(seconds=every * (iterations - 1)), f"manual run: {iterations} pull(s)"
-    ok, reason = collection_window(t, holidays)
+    if trigger is None:
+        trigger = "night" if in_night(t) else "morning"
+    if trigger == "night":
+        if in_night(t):
+            return True, t, t, f"{t:%a %Y-%m-%d %H:%M} SGT is a night pull (free-flow reference)"
+        nlo, nhi = NIGHT_WINDOW
+        return False, None, None, f"{t:%H:%M} SGT: a night trigger outside {nlo:%H:%M}-{nhi:%H:%M} pulls nothing"
+    ok, reason = collection_window(t, holidays, night=None)
     lo, hi = COLLECT_WINDOW
     start, until = dt.datetime.combine(t.date(), lo), dt.datetime.combine(t.date(), hi)
-    nlo, nhi = NIGHT_WINDOW
-    if ok and (t.time() >= nlo or t.time() <= nhi):
-        return True, t, t, reason
     if ok or (t.weekday() < 5 and t.date() not in holidays
               and start - dt.timedelta(minutes=early_min) <= t < start):
-        return True, start, until, f"{t:%a %Y-%m-%d %H:%M} SGT: morning loop {lo:%H:%M}-{hi:%H:%M}"
+        began = sgt_naive(job_start) if job_start is not None else t
+        cap = began + dt.timedelta(minutes=max_run_min)
+        note = ""
+        if cap < until:
+            until = cap
+            note = f"; last pull by {cap:%H:%M}, {max_run_min} min after the job started"
+        return True, start, until, f"{t:%a %Y-%m-%d %H:%M} SGT: morning loop {lo:%H:%M}-{hi:%H:%M}{note}"
     return False, None, None, reason
+
+
+def gate(now, force=False, iterations=1, every=LOOP_EVERY, schedule="", job_start=""):
+    """(collect?, reason, step outputs) of the workflow's gate step for a run at `now` (aware, the runner's clock).
+
+    `schedule` is the cron that fired (github.event.schedule, empty for a manual run) and `job_start` the Unix
+    second the job started (empty if unknown).
+    """
+    stamp = sgt_minute(now)
+    began = dt.datetime.fromtimestamp(int(job_start), dt.timezone.utc) if job_start else None
+    ok, start, until, reason = loop_plan(now, force, iterations, every, trigger=trigger_of(schedule), job_start=began)
+    return ok, reason, dict(collect=str(ok).lower(), stamp=f"{stamp:%Y-%m-%dT%H:%M}", day=f"{stamp:%Y-%m-%d}",
+                            start=f"{start:%Y-%m-%dT%H:%M}" if ok else "",
+                            until=f"{until:%Y-%m-%dT%H:%M}" if ok else "", every=every if force else LOOP_EVERY)
 
 
 def next_pull(now, start, until, every=LOOP_EVERY, done=(), first=False, grace_min=LATE_GRACE_MIN, force=False):
@@ -450,6 +501,8 @@ if __name__ == "__main__":
     g.add_argument("--force", action="store_true", help="collect anyway (manual runs)")
     g.add_argument("--iterations", type=int, default=1, help="manual runs: pulls in the loop")
     g.add_argument("--every", type=int, default=LOOP_EVERY, help="manual runs: seconds between pulls")
+    g.add_argument("--schedule", default="", help="the cron that started the run (github.event.schedule)")
+    g.add_argument("--job-start", default="", help="when the job started, Unix seconds (for the timeout bound)")
     nx = sub.add_parser("next", help="GitHub Actions loop: wait for the next pull and print its stamp")
     nx.add_argument("--start", required=True)
     nx.add_argument("--until", required=True)
@@ -465,12 +518,10 @@ if __name__ == "__main__":
     if a.cmd == "run":
         run(dt.datetime.strptime(a.until, "%Y%m%d%H%M"), a.speed_every, a.incident_every, a.expected_links)
     elif a.cmd == "gate":
-        stamp = sgt_minute()
-        ok, start, until, reason = loop_plan(dt.datetime.now(dt.timezone.utc), a.force, a.iterations, a.every)
+        ok, reason, outputs = gate(dt.datetime.now(dt.timezone.utc), a.force, a.iterations, a.every, a.schedule,
+                                   a.job_start)
         print(("collect: " if ok else "skip: ") + reason)
-        github_output(collect=str(ok).lower(), stamp=f"{stamp:%Y-%m-%dT%H:%M}", day=f"{stamp:%Y-%m-%d}",
-                      start=f"{start:%Y-%m-%dT%H:%M}" if ok else "", until=f"{until:%Y-%m-%dT%H:%M}" if ok else "",
-                      every=a.every if a.force else LOOP_EVERY)
+        github_output(**outputs)
     elif a.cmd == "next":
         fmt = "%Y-%m-%dT%H:%M"
         now = dt.datetime.now(SGT).replace(tzinfo=None)

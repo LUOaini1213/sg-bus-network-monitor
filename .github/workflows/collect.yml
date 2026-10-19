@@ -1,18 +1,23 @@
 name: collect speed bands
 # DataMall speed bands (288 paged calls) and one Traffic Incidents poll every 15 minutes, 06:30-10:00 Singapore
 # time on weekdays, from ONE job per morning that loops: pull, commit and push, wait for the next 15-minute slot.
-# GitHub delays and drops scheduled runs (on 16 October 2026 only the 08:36 and 08:50 SGT ones of fifteen ran),
-# so the morning has one trigger before the window and two backups at odd minutes: 22:20, 22:47 and 23:13 UTC from
-# Sunday to Thursday night are 06:20, 06:47 and 07:13 SGT (Singapore is UTC+08:00, no daylight saving). A backup
-# that fires while the loop runs waits in the concurrency group and then finds every slot taken in the day's
-# manifest; a backup that starts first runs the loop itself. Two more runs every night, 01:10 and 03:10 SGT, pull
-# once each for the bus-priority screen's free-flow night reference. src/collect.py gate decides in Singapore time
-# and skips public-holiday mornings (demand.HOLIDAYS_2026). Snapshots are committed to the data-collect branch.
+# GitHub delays and drops scheduled runs (on 16 October 2026 only the 08:36 and 08:50 SGT ones of fifteen ran; on
+# 19 October the first morning run started at 08:14), so the morning trigger fires more than two hours before the
+# window and three backups follow at odd minutes: 20:10, 21:02, 21:51 and 22:41 UTC from Sunday to Thursday night are
+# 04:10, 05:02, 05:51 and 06:41 SGT (Singapore is UTC+08:00, no daylight saving). The job waits for 06:30, and
+# src/collect.py gate ends the loop at most 350 minutes after the job started, inside the 355-minute timeout.
+# A backup that fires while the loop runs waits in the concurrency group and then finds every slot taken in the
+# day's manifest; a backup that starts first runs the loop itself. Two more runs every night, 01:10 and 03:10 SGT,
+# pull once each for the bus-priority screen's free-flow night reference; the gate tells them from the morning by
+# the cron that fired, skips one that GitHub started after 05:00, and a night run times out after 30 minutes, so a
+# late 03:10 run cannot hold the group into the morning. The gate decides in Singapore time and skips
+# public-holiday mornings (demand.HOLIDAYS_2026). Snapshots are committed to the data-collect branch.
 on:
   schedule:
-    - cron: "20 22 * * 0-4"      # 06:20 SGT: the morning loop (waits for 06:30)
-    - cron: "47 22 * * 0-4"      # 06:47 SGT: backup
-    - cron: "13 23 * * 0-4"      # 07:13 SGT: backup
+    - cron: "10 20 * * 0-4"      # 04:10 SGT: the morning loop (waits for 06:30)
+    - cron: "2 21 * * 0-4"       # 05:02 SGT: backup
+    - cron: "51 21 * * 0-4"      # 05:51 SGT: backup
+    - cron: "41 22 * * 0-4"      # 06:41 SGT: backup
     - cron: "10 17,19 * * *"     # 01:10 and 03:10 SGT, every night
   workflow_dispatch:   # a manual run always pulls, inside the windows or not
     inputs:
@@ -37,8 +42,12 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    # a night run (NIGHT_CRON in src/collect.py) gets 30 minutes; GitHub-hosted jobs stop at 360
+    timeout-minutes: ${{ github.event.schedule == '10 17,19 * * *' && 30 || 355 }}
     steps:
+      - name: Job start (for the timeout bound)
+        id: t0
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -52,7 +61,9 @@ jobs:
         env:
           ITERATIONS: ${{ inputs.iterations || '1' }}
           EVERY_MIN: ${{ inputs.every_minutes || '15' }}
-        run: python code/src/collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force --iterations "$ITERATIONS" --every "$((EVERY_MIN * 60))"' || '' }}
+          SCHEDULE: ${{ github.event.schedule }}
+          JOB_START: ${{ steps.t0.outputs.epoch }}
+        run: python code/src/collect.py gate --schedule "$SCHEDULE" --job-start "$JOB_START" ${{ github.event_name == 'workflow_dispatch' && '--force --iterations "$ITERATIONS" --every "$((EVERY_MIN * 60))"' || '' }}
       - name: Check out data-collect (today's folders only)
         if: steps.gate.outputs.collect == 'true'
         uses: actions/checkout@v4

@@ -2,22 +2,28 @@ name: collect bus arrivals
 # DataMall Bus Arrival (v3) at the 41 corridor stops in data/reference/busarrival_stops.csv, one sweep every
 # 2 minutes from 06:30 to 10:00 Singapore time on weekdays (src/busarrival.py has the call budget and backoff).
 # One job polls the whole morning and commits to data-collect every 15 minutes, so a cancelled or timed-out run
-# keeps what it already pushed. GitHub cron is UTC (Singapore is UTC+08:00, no daylight saving): 22:00 UTC from
-# Sunday to Thursday night is 06:00 SGT. GitHub delays and drops scheduled runs (on 16 October 2026 the first
-# one started at 07:58 SGT), so three backups follow at odd minutes (06:27, 06:53, 07:19 SGT). A backup that
-# fires while a job is polling waits in the concurrency group and then finds the window closed; one that fires
-# first polls from when it starts.
+# keeps what it already pushed. GitHub cron is UTC (Singapore is UTC+08:00, no daylight saving): 20:15 UTC from
+# Sunday to Thursday night is 04:15 SGT. GitHub delays and drops scheduled runs (on 16 and 19 October 2026 the
+# first morning run started at 07:58 SGT), so the first trigger fires more than two hours before the window and three
+# backups follow at odd minutes (05:07, 05:56 and 06:46 SGT). The job waits for 06:30; src/busarrival.py gate ends
+# the polling at most 350 minutes after the job started, inside the 355-minute timeout. A backup that fires while
+# a job is polling waits in the concurrency group and then finds the window closed; one that fires first polls
+# from when it starts.
 on:
   schedule:
-    - cron: "0 22 * * 0-4"       # 06:00 SGT: the morning job (waits for 06:30)
-    - cron: "27 22 * * 0-4"      # 06:27 SGT: backup
-    - cron: "53 22 * * 0-4"      # 06:53 SGT: backup
-    - cron: "19 23 * * 0-4"      # 07:19 SGT: backup
+    - cron: "15 20 * * 0-4"      # 04:15 SGT: the morning job (waits for 06:30)
+    - cron: "7 21 * * 0-4"       # 05:07 SGT: backup
+    - cron: "56 21 * * 0-4"      # 05:56 SGT: backup
+    - cron: "46 22 * * 0-4"      # 06:46 SGT: backup
   workflow_dispatch:
     inputs:
       minutes:
         description: "Manual run: poll for this many minutes, starting now"
         default: "20"
+      dry_run:
+        description: "Run the gate and print the polling window without calling DataMall or committing"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -29,8 +35,11 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 260
+    timeout-minutes: 355   # GitHub-hosted jobs stop at 360
     steps:
+      - name: Job start (for the timeout bound)
+        id: t0
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -43,7 +52,8 @@ jobs:
         id: gate
         env:
           MINUTES: ${{ inputs.minutes || '20' }}
-        run: python code/src/busarrival.py gate ${{ github.event_name == 'workflow_dispatch' && '--force --minutes "$MINUTES"' || '' }}
+          JOB_START: ${{ steps.t0.outputs.epoch }}
+        run: python code/src/busarrival.py gate --job-start "$JOB_START" ${{ github.event_name == 'workflow_dispatch' && '--force --minutes "$MINUTES"' || '' }}
       - name: Check out data-collect (today's bus-arrival folder only)
         if: steps.gate.outputs.collect == 'true'
         uses: actions/checkout@v4
@@ -60,7 +70,9 @@ jobs:
           LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}
           START: ${{ steps.gate.outputs.start }}
           UNTIL: ${{ steps.gate.outputs.until }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
         run: |
+          if [ "$DRY_RUN" = true ]; then echo "dry run: would poll $START to $UNTIL SGT"; exit 0; fi
           git -C store config user.name "github-actions[bot]"
           git -C store config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           commit() {

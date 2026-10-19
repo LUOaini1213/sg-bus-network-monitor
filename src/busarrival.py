@@ -1,6 +1,6 @@
 """Bus Arrival collector: the next three buses of every service at 41 corridor stops, every 2 minutes.
 
-    python src/busarrival.py gate [--force --minutes N]     # GitHub Actions: poll this morning? until when?
+    python src/busarrival.py gate [--job-start S] [--force --minutes N]   # GitHub Actions: poll this morning? until when?
     python src/busarrival.py poll --out DIR --until T [--start T] [--chunk-minutes 15]   # needs LTA_KEY
 
 Stops: data/reference/busarrival_stops.csv (Marine Parade Rd, Telok Blangah Rd and Orchard Rd; see
@@ -41,7 +41,10 @@ URL = "https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival"
 STOPS_CSV = ROOT / "data" / "reference" / "busarrival_stops.csv"
 SGT = dt.timezone(dt.timedelta(hours=8), "SGT")
 WINDOW = (dt.time(6, 30), dt.time(10, 0))
-EARLY_MIN = 45   # a scheduled run that starts up to 45 minutes before 06:30 waits for 06:30
+EARLY_MIN = 150  # a scheduled run that starts up to 150 minutes before 06:30 (04:00 SGT) waits for 06:30
+JOB_TIMEOUT_MIN = 355  # timeout-minutes in busarrival.yml (GitHub-hosted jobs stop at 360)
+FINISH_MIN = 5   # the last chunk's commit and push after polling stops
+MAX_RUN_MIN = JOB_TIMEOUT_MIN - FINISH_MIN  # polling stops at most 350 minutes after the job started
 PERIOD = 120     # seconds per sweep
 MAX_PERIOD = 480
 QUOTA_PAUSE = (60, 120, 240)
@@ -68,10 +71,11 @@ def utc_now():
     return dt.datetime.now(dt.timezone.utc)
 
 
-def window(now, holidays=HOLIDAYS_2026, win=WINDOW, early_min=EARLY_MIN):
+def window(now, holidays=HOLIDAYS_2026, win=WINDOW, early_min=EARLY_MIN, job_start=None, max_run_min=MAX_RUN_MIN):
     """(start, until, reason) of this morning's polling window for a run starting at `now` (aware), or
     (None, None, reason) when there is none: weekends, public holidays, more than early_min minutes before
-    06:30, or after 10:00 Singapore time."""
+    06:30, or after 10:00 Singapore time. Polling stops at most max_run_min minutes after `job_start` (default
+    `now`), so a job that started very early ends inside timeout-minutes."""
     t = sgt(now)
     if t.weekday() >= 5:
         return None, None, f"{t:%a %Y-%m-%d} is a weekend day"
@@ -83,7 +87,23 @@ def window(now, holidays=HOLIDAYS_2026, win=WINDOW, early_min=EARLY_MIN):
         return None, None, f"{t:%H:%M} SGT is too early (the window opens at {win[0]:%H:%M})"
     if t >= until:
         return None, None, f"{t:%H:%M} SGT is after the window closed at {win[1]:%H:%M}"
-    return max(start, t), until, f"{t:%a %Y-%m-%d %H:%M} SGT: polling {max(start, t):%H:%M}-{win[1]:%H:%M}"
+    cap = sgt(job_start or now) + dt.timedelta(minutes=max_run_min)
+    until = min(until, cap)
+    return max(start, t), until, f"{t:%a %Y-%m-%d %H:%M} SGT: polling {max(start, t):%H:%M}-{until:%H:%M}"
+
+
+def gate(now, force=False, minutes=20, job_start=""):
+    """(start, reason, step outputs) of the workflow's gate step for a run at `now` (aware); `job_start` is the
+    Unix second the job started (empty if unknown). A manual run (force) polls `minutes` from now."""
+    began = dt.datetime.fromtimestamp(int(job_start), dt.timezone.utc) if job_start else None
+    start, until, reason = window(now, job_start=began)
+    if force:
+        start, until = sgt(now), sgt(now) + dt.timedelta(minutes=minutes)
+        reason = f"manual run: polling {start:%H:%M}-{until:%H:%M} SGT"
+    return start, reason, dict(collect=str(start is not None).lower(),
+                               start=f"{start:%Y-%m-%dT%H:%M:%S}" if start else "",
+                               until=f"{until:%Y-%m-%dT%H:%M:%S}" if until else "",
+                               day=f"{sgt(start or now):%Y-%m-%d}")
 
 
 def get_arrivals(session, key, stop, sleep=time.sleep):
@@ -241,6 +261,7 @@ if __name__ == "__main__":
     g = sub.add_parser("gate")
     g.add_argument("--force", action="store_true", help="manual run: poll now for --minutes")
     g.add_argument("--minutes", type=int, default=20)
+    g.add_argument("--job-start", default="", help="when the job started, Unix seconds (for the timeout bound)")
     p = sub.add_parser("poll")
     p.add_argument("--out", required=True)
     p.add_argument("--until", required=True, help="end, YYYY-mm-ddTHH:MM[:SS] Singapore time")
@@ -248,16 +269,9 @@ if __name__ == "__main__":
     p.add_argument("--chunk-minutes", type=float, help="return after this long (the workflow commits in between)")
     a = ap.parse_args()
     if a.cmd == "gate":
-        now = utc_now()
-        start, until, reason = window(now)
-        if a.force:
-            start, until = sgt(now), sgt(now) + dt.timedelta(minutes=a.minutes)
-            reason = f"manual run: polling {start:%H:%M}-{until:%H:%M} SGT"
+        start, reason, outputs = gate(utc_now(), a.force, a.minutes, a.job_start)
         print(("collect: " if start else "skip: ") + reason, flush=True)
-        github_output(collect=str(start is not None).lower(),
-                      start=f"{start:%Y-%m-%dT%H:%M:%S}" if start else "",
-                      until=f"{until:%Y-%m-%dT%H:%M:%S}" if until else "",
-                      day=f"{sgt(start or now):%Y-%m-%d}")
+        github_output(**outputs)
     else:
         key = os.environ.get("LTA_KEY")
         if not key:

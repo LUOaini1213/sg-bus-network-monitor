@@ -67,8 +67,10 @@ def sgt(h, m, s=0, day=16):
 
 @pytest.mark.parametrize("now, start, until", [
     (sgt(6, 0), sgt(6, 30), sgt(10, 0)),     # scheduled start: wait for 06:30
+    (sgt(4, 15), sgt(6, 30), sgt(10, 0)),    # the primary trigger: waits 135 minutes
+    (sgt(4, 0), sgt(6, 30), sgt(9, 50)),     # 150 minutes early: stops 350 minutes after it started
     (sgt(7, 12), sgt(7, 12), sgt(10, 0)),    # late start: poll from now
-    (sgt(5, 40), None, None),                # too early
+    (sgt(3, 59), None, None),                # before the allowance
     (sgt(10, 0), None, None),                # closed
     (sgt(7, 0, day=17), None, None),         # Saturday
     (dt.datetime(2026, 11, 9, 7, 0, tzinfo=SGT), None, None),   # Deepavali holiday (Monday)
@@ -173,14 +175,60 @@ def test_workflow_uses_the_secret_only_in_the_poll_step():
     assert text.count("secrets.LTA_ACCOUNT_KEY") == 1
     import re
     crons = re.findall(r'cron:\s*"([^"]+)"', text)
-    assert crons == ["0 22 * * 0-4", "27 22 * * 0-4", "53 22 * * 0-4", "19 23 * * 0-4"]   # Sun-Thu UTC
-    for c in crons:   # 06:00, 06:27, 06:53 and 07:19 SGT on a Monday: every trigger can start the morning
+    assert crons == ["15 20 * * 0-4", "7 21 * * 0-4", "56 21 * * 0-4", "46 22 * * 0-4"]   # Sun-Thu UTC
+    for c in crons:   # 04:15, 05:07, 05:56 and 06:46 SGT on a Monday: every trigger can start the morning
         m, h = map(int, c.split()[:2])
-        fired = dt.datetime(2026, 10, 18, h, m, tzinfo=dt.timezone.utc)
-        start, until, _ = ba.window(fired)
-        assert (start, until) == (max(sgt(6, 30, day=19), fired), sgt(10, 0, day=19))
+        for late in (dt.timedelta(0), dt.timedelta(hours=2)):   # on time, or two hours late (19 October: 1 h 58)
+            fired = dt.datetime(2026, 10, 18, h, m, tzinfo=dt.timezone.utc) + late
+            start, until, _ = ba.window(fired, job_start=fired)
+            assert (start, until) == (max(sgt(6, 30, day=19), fired), sgt(10, 0, day=19))
+    m, h = map(int, crons[0].split()[:2])   # the primary, two hours late, still starts before 06:30
+    assert dt.datetime(2026, 10, 18, h, m, tzinfo=dt.timezone.utc) + dt.timedelta(hours=2) <= sgt(6, 30, day=19)
+    assert f"timeout-minutes: {ba.JOB_TIMEOUT_MIN}" in text and ba.JOB_TIMEOUT_MIN < 360
+    assert ba.MAX_RUN_MIN + ba.FINISH_MIN <= ba.JOB_TIMEOUT_MIN
+    assert "JOB_START: ${{ steps.t0.outputs.epoch }}" in text and 'busarrival.py gate --job-start "$JOB_START"' in text
+    steps = text.split("    steps:\n", 1)[1]
+    assert steps.lstrip().startswith("- name: Job start (for the timeout bound)\n        id: t0\n")
     assert "group: collect-bus-arrivals" in text and "cancel-in-progress: false" in text
     assert "echo $LTA_KEY" not in text and "set -x" not in text
+
+
+def test_polling_stops_within_the_job_timeout_for_every_start():
+    for minute in range(3 * 60 + 30, 10 * 60 + 30):
+        t = sgt(minute // 60, minute % 60, day=19)
+        for setup in (0, 2):   # the gate runs a minute or two after the job started
+            began = t - dt.timedelta(minutes=setup)
+            start, until, _ = ba.window(t, job_start=began)
+            if start is None:
+                assert t < sgt(4, 0, day=19) or t >= sgt(10, 0, day=19)
+                continue
+            assert start == max(t, sgt(6, 30, day=19)) and start < until
+            assert (until - began).total_seconds() / 60 + ba.FINISH_MIN <= ba.JOB_TIMEOUT_MIN
+            if began >= sgt(4, 15, day=19):   # the primary cron fires at 04:15
+                assert until == sgt(10, 0, day=19)
+
+
+def test_gate_step_outputs_follow_the_job_start():
+    fired = dt.datetime(2026, 10, 18, 20, 16, tzinfo=dt.timezone.utc)   # Monday 04:16 SGT
+    start, _, out = ba.gate(fired, job_start=str(int(fired.timestamp()) - 60))
+    assert start == sgt(6, 30, day=19)
+    assert (out["collect"], out["start"], out["until"], out["day"]) == (
+        "true", "2026-10-19T06:30:00", "2026-10-19T10:00:00", "2026-10-19")
+    early = dt.datetime(2026, 10, 18, 20, 0, tzinfo=dt.timezone.utc)    # a job that started at 04:00 SGT
+    assert ba.gate(fired, job_start=str(int(early.timestamp())))[2]["until"] == "2026-10-19T09:50:00"
+    start, _, out = ba.gate(fired, force=True, minutes=5)
+    assert (out["start"], out["until"]) == ("2026-10-19T04:16:00", "2026-10-19T04:21:00")
+    start, _, out = ba.gate(fired - dt.timedelta(hours=1))                # 03:16 SGT: too early
+    assert start is None and (out["collect"], out["start"], out["until"]) == ("false", "", "")
+
+
+def test_a_dry_run_polls_nothing_and_commits_nothing():
+    text = (ROOT / ".github" / "workflows" / "busarrival.yml").read_text(encoding="utf-8")
+    assert "dry_run:" in text and "DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}" in text
+    step = text.split("- name: Poll and commit every 15 minutes", 1)[1]
+    script = step.split("run: |", 1)[1]
+    first = script.strip().splitlines()[0]
+    assert first == 'if [ "$DRY_RUN" = true ]; then echo "dry run: would poll $START to $UNTIL SGT"; exit 0; fi'
 
 
 def test_stop_sample_is_the_three_corridors():

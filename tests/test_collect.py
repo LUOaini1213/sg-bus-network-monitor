@@ -194,22 +194,81 @@ def _cron_fires(expr, start, end):
     return out
 
 
-def test_workflow_cron_starts_one_morning_loop_with_two_backups_and_two_night_pulls():
+GITHUB_DELAY = dt.timedelta(hours=2)   # 19 October 2026: the morning runs started 1 h 54 min to 1 h 58 min late
+GITHUB_MAX_TIMEOUT = 360               # minutes, GitHub-hosted runners
+
+
+def test_workflow_cron_starts_one_morning_loop_with_three_backups_and_two_night_pulls():
     import re
     text = WORKFLOW.read_text(encoding="utf-8")
     crons = re.findall(r'cron:\s*"([^"]+)"', text)
+    assert collect.NIGHT_CRON in crons
     start = dt.datetime(2026, 10, 18, tzinfo=UTC)  # a Sunday; one full week
     fires = set().union(*(_cron_fires(c, start, start + dt.timedelta(days=7)) for c in crons))
     sgt = sorted(f.astimezone(collect.SGT).replace(tzinfo=None) for f in fires)
-    mornings = [dt.datetime(2026, 10, d, h, m) for d in range(19, 24) for h, m in ((6, 20), (6, 47), (7, 13))]
+    mornings = [dt.datetime(2026, 10, d, h, m) for d in range(19, 24) for h, m in ((4, 10), (5, 2), (5, 51), (6, 41))]
     nights = [dt.datetime(2026, 10, d, h, 10) for d in range(19, 26) for h in (1, 3)]  # 17:10, 19:10 UTC
     assert sgt == sorted(mornings + nights)
-    for f in mornings:   # every morning trigger runs the whole 06:30-10:00 loop
-        assert collect.loop_plan(f)[:3] == (True, f.replace(hour=6, minute=30), f.replace(hour=10, minute=0))
-    for f in nights:     # a night trigger pulls once
-        assert collect.loop_plan(f)[:3] == (True, f, f)
-    assert "LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}" in text
-    assert "timeout-minutes: 240" in text and "cancel-in-progress: false" in text
+    for c in crons:
+        night = collect.trigger_of(c) == "night"
+        for f in _cron_fires(c, start, start + dt.timedelta(days=7)):
+            f = f.astimezone(collect.SGT).replace(tzinfo=None)
+            if night:    # a night trigger pulls once
+                assert collect.loop_plan(f, trigger="night", job_start=f)[:3] == (True, f, f)
+                continue
+            # every morning trigger runs the whole 06:30-10:00 loop, on time or two hours late
+            for late in (dt.timedelta(0), GITHUB_DELAY):
+                assert collect.loop_plan(f + late, trigger="morning", job_start=f + late)[:3] == (
+                    True, f.replace(hour=6, minute=30), f.replace(hour=10, minute=0))
+    first = min(f for f in mornings if f.day == 19)
+    assert first + GITHUB_DELAY <= dt.datetime(2026, 10, 19, 6, 30)   # even two hours late, before 06:30
+    assert "LTA_KEY: ${{ secrets.LTA_ACCOUNT_KEY }}" in text and "cancel-in-progress: false" in text
+
+
+def test_workflow_timeouts_and_the_gate_inputs():
+    import re
+    text = WORKFLOW.read_text(encoding="utf-8")
+    cron, night_min, morning_min = re.search(
+        r"timeout-minutes: \$\{\{ github\.event\.schedule == '([^']+)' && (\d+) \|\| (\d+) \}\}", text).groups()
+    assert cron == collect.NIGHT_CRON and f'cron: "{cron}"' in text
+    assert int(night_min) == collect.NIGHT_TIMEOUT_MIN and int(morning_min) == collect.JOB_TIMEOUT_MIN
+    assert collect.JOB_TIMEOUT_MIN < GITHUB_MAX_TIMEOUT
+    assert collect.MAX_RUN_MIN + collect.LAST_PULL_MIN <= collect.JOB_TIMEOUT_MIN
+    # the last pull's budget covers the slowest pull seen (72 s on 19 October) plus the whole quota backoff
+    assert collect.LAST_PULL_MIN * 60 >= 72 + sum(collect.QUOTA_BACKOFF)
+    # the gate is told which cron fired and when the job started (the first step)
+    steps = text.split("    steps:\n", 1)[1]
+    assert steps.lstrip().startswith("- name: Job start (for the timeout bound)\n        id: t0\n")
+    assert 'run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"' in steps
+    assert "SCHEDULE: ${{ github.event.schedule }}" in text and "JOB_START: ${{ steps.t0.outputs.epoch }}" in text
+    assert 'collect.py gate --schedule "$SCHEDULE" --job-start "$JOB_START" ${{' in text
+
+
+def test_gate_step_outputs_follow_the_cron_and_the_job_start():
+    def epoch(t):
+        return str(int(t.timestamp()))
+    primary = dt.datetime(2026, 10, 18, 20, 11, tzinfo=UTC)   # Monday 04:11 SGT
+    ok, _, out = collect.gate(primary, schedule="10 20 * * 0-4", job_start=epoch(primary - dt.timedelta(minutes=1)))
+    assert ok and (out["start"], out["until"], out["day"]) == ("2026-10-19T06:30", "2026-10-19T10:00", "2026-10-19")
+    assert (out["collect"], out["every"]) == ("true", collect.LOOP_EVERY)
+    early = dt.datetime(2026, 10, 18, 20, 0, tzinfo=UTC)      # a job that started at 04:00 SGT
+    assert collect.gate(primary, schedule="10 20 * * 0-4", job_start=epoch(early))[2]["until"] == "2026-10-19T09:50"
+    assert collect.gate(primary, schedule="10 20 * * 0-4")[2]["until"] == "2026-10-19T10:00"
+    late_night = dt.datetime(2026, 10, 18, 20, 31, tzinfo=UTC)   # the 03:10 trigger, started at 04:31 SGT
+    out = collect.gate(late_night, schedule=collect.NIGHT_CRON, job_start=epoch(late_night))[2]
+    assert (out["start"], out["until"]) == ("2026-10-19T04:31", "2026-10-19T04:31")
+    out = collect.gate(late_night, schedule="10 20 * * 0-4", job_start=epoch(late_night))[2]
+    assert (out["start"], out["until"]) == ("2026-10-19T06:30", "2026-10-19T10:00")
+    ok, _, out = collect.gate(late_night + dt.timedelta(hours=1), schedule=collect.NIGHT_CRON)
+    assert not ok and (out["collect"], out["start"], out["until"]) == ("false", "", "")
+    ok, _, out = collect.gate(late_night, force=True, iterations=2, every=180)
+    assert ok and (out["start"], out["until"], out["every"]) == ("2026-10-19T04:31", "2026-10-19T04:34", 180)
+
+
+def test_trigger_of_the_cron_that_fired():
+    assert collect.trigger_of(collect.NIGHT_CRON) == "night"
+    assert collect.trigger_of("10 20 * * 0-4") == "morning"
+    assert collect.trigger_of("") is None and collect.trigger_of(None) is None
 
 
 # ---------------------------------------------------------------- the morning loop: plan, slots, stop
@@ -220,19 +279,78 @@ def hm(h, m, s=0, day=M):
     return day.replace(hour=h, minute=m, second=s)
 
 
-@pytest.mark.parametrize("now, plan", [
-    (hm(6, 20), (True, hm(6, 30), hm(10, 0))),
-    (hm(5, 45), (True, hm(6, 30), hm(10, 0))),       # up to 45 minutes early
-    (hm(5, 44), (False, None, None)),
-    (hm(8, 36), (True, hm(6, 30), hm(10, 0))),       # a late start still loops to 10:00
-    (hm(10, 20), (True, hm(6, 30), hm(10, 0))),
-    (hm(10, 21), (False, None, None)),
-    (hm(6, 20, day=dt.datetime(2026, 10, 24)), (False, None, None)),   # Saturday
-    (hm(6, 20, day=dt.datetime(2026, 11, 9)), (False, None, None)),    # holiday
-    (hm(1, 10, 40), (True, hm(1, 10), hm(1, 10))),   # night: one pull
+@pytest.mark.parametrize("now, trigger, plan", [
+    (hm(6, 20), None, (True, hm(6, 30), hm(10, 0))),
+    (hm(5, 30), None, (True, hm(6, 30), hm(10, 0))),       # after the night window: a morning run
+    (hm(4, 10), "morning", (True, hm(6, 30), hm(10, 0))),  # the primary trigger: waits 140 minutes
+    (hm(4, 0), "morning", (True, hm(6, 30), hm(9, 50))),   # 150 minutes early: ends 350 minutes after it started
+    (hm(3, 59), "morning", (False, None, None)),           # before the allowance
+    (hm(8, 36), "morning", (True, hm(6, 30), hm(10, 0))),  # a late start still loops to 10:00
+    (hm(10, 20), None, (True, hm(6, 30), hm(10, 0))),
+    (hm(10, 21), "morning", (False, None, None)),
+    (hm(4, 10, day=dt.datetime(2026, 10, 24)), "morning", (False, None, None)),   # Saturday
+    (hm(4, 10, day=dt.datetime(2026, 11, 9)), "morning", (False, None, None)),    # holiday
+    (hm(1, 10, 40), None, (True, hm(1, 10), hm(1, 10))),   # night: one pull
+    (hm(4, 30), None, (True, hm(4, 30), hm(4, 30))),       # inside the night window, cron unknown: a night pull
+    (hm(4, 30), "night", (True, hm(4, 30), hm(4, 30))),    # a 03:10 trigger GitHub started late
+    (hm(5, 0), "night", (True, hm(5, 0), hm(5, 0))),
+    (hm(5, 1), "night", (False, None, None)),              # too late for the night reference: nothing
+    (hm(8, 14), "night", (False, None, None)),
+    (hm(3, 10, day=dt.datetime(2026, 10, 24)), "night", (True, hm(3, 10, day=dt.datetime(2026, 10, 24)),
+                                                         hm(3, 10, day=dt.datetime(2026, 10, 24)))),
 ])
-def test_loop_plan(now, plan):
-    assert collect.loop_plan(now)[:3] == plan
+def test_loop_plan(now, trigger, plan):
+    assert collect.loop_plan(now, trigger=trigger)[:3] == plan
+
+
+def test_a_loop_from_04_10_waits_for_06_30_and_pulls_to_10_00():
+    ok, start, until, _ = collect.loop_plan(hm(4, 11), trigger="morning", job_start=hm(4, 10, 2))
+    assert (ok, start, until) == (True, hm(6, 30), hm(10, 0))
+    assert collect.next_pull(hm(4, 11, 20), start, until, first=True) == hm(6, 30)
+    now = [hm(4, 11, 20)]
+    collect.wait_until(hm(6, 30), clock=lambda: now[0],
+                       sleep=lambda s: now.__setitem__(0, now[0] + dt.timedelta(seconds=s)))
+    assert now[0] == hm(6, 30)
+    made = run_loop(hm(4, 11, 20), until=until)
+    assert made == [hm(6, 30) + dt.timedelta(minutes=15 * k) for k in range(15)]
+
+
+def test_the_last_pull_is_within_the_job_timeout_for_every_start():
+    for minute in range(3 * 60 + 30, 10 * 60 + 30):
+        t = hm(minute // 60, minute % 60)
+        for setup in (0, 2):   # the gate runs a minute or two after the job started
+            began = t - dt.timedelta(minutes=setup)
+            ok, start, until, _ = collect.loop_plan(t, trigger="morning", job_start=began)
+            if not ok:
+                assert t < hm(4, 0) or t > hm(10, 20)
+                continue
+            assert t >= hm(6, 30) - dt.timedelta(minutes=collect.EARLY_MIN)
+            made = run_loop(t, until=until)
+            assert made and made[0] == max(hm(6, 30), t)
+            ran = (made[-1] - began).total_seconds() / 60 + collect.LAST_PULL_MIN
+            assert ran <= collect.JOB_TIMEOUT_MIN
+            if began >= hm(4, 10):   # the primary cron fires at 04:10, so no job starts earlier
+                assert made[-1] > hm(9, 45)   # the 10:00 pull, or a late start's own pull after 09:52
+
+
+def test_a_job_started_too_early_for_the_10_00_pull_leaves_it_to_a_backup():
+    ok, start, until, reason = collect.loop_plan(hm(4, 2), trigger="morning", job_start=hm(4, 0))
+    assert (ok, until) == (True, hm(9, 50)) and "09:50" in reason
+    made = run_loop(hm(4, 2), until=until)
+    assert made[-1] == hm(9, 45)
+    # the backup that waited in the concurrency group starts when the job ends and makes the 10:00 pull
+    assert collect.loop_plan(hm(9, 46), trigger="morning")[:3] == (True, hm(6, 30), hm(10, 0))
+    assert run_loop(hm(9, 46, 30), made) == [hm(10, 0)]
+
+
+def test_a_late_night_run_cannot_hold_the_concurrency_group_into_the_morning():
+    # the latest night run that pulls starts at the end of the night window and is stopped NIGHT_TIMEOUT_MIN later
+    latest = dt.datetime.combine(M.date(), collect.NIGHT_WINDOW[1])
+    assert collect.loop_plan(latest, trigger="night")[0]
+    assert not collect.loop_plan(latest + dt.timedelta(minutes=1), trigger="night")[0]
+    freed = latest + dt.timedelta(minutes=collect.NIGHT_TIMEOUT_MIN)
+    assert freed <= hm(5, 30)   # the waiting morning job then starts with an hour to spare
+    assert collect.loop_plan(freed, trigger="morning", job_start=freed)[:3] == (True, hm(6, 30), hm(10, 0))
 
 
 def test_manual_loop_plan_runs_the_given_number_of_pulls():
@@ -431,6 +549,6 @@ def test_a_failed_pull_that_is_not_the_quota_fails_the_run(tmp_path, monkeypatch
 def test_a_manual_run_always_pulls():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "workflow_dispatch" in text
-    assert "collect.py gate ${{ github.event_name == 'workflow_dispatch' && '--force --iterations" in text
+    assert '--job-start "$JOB_START" ${{ github.event_name == \'workflow_dispatch\' && \'--force --iterations' in text
     ok, start, until, _ = collect.loop_plan(dt.datetime(2026, 10, 24, 13, 0), force=True)   # Saturday afternoon
     assert ok and start == until

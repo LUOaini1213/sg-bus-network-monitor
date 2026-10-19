@@ -2,6 +2,8 @@
 
 Run from any directory: python tests/mutate.py. Importing this module does not
 run tests or alter sources. Collection/setup errors are harness errors, not kills.
+A target is a module in src/, or a path from the repository root (a workflow file:
+not compiled or imported, only tested).
 """
 import os
 import subprocess
@@ -21,6 +23,8 @@ FC = ["test_forecast.py"]
 SF = ["test_safety.py"]
 FI = ["test_finance.py"]
 BA = ["test_busarrival.py", "test_busarrival_analysis.py"]
+COLLECT_YML = ".github/workflows/collect.yml"
+BUSARRIVAL_YML = ".github/workflows/busarrival.yml"
 MUTANTS = [
     ("corridors.py", "sum(nums[:2]) / len(nums[:2])", "max(nums[:2])"),
     ("corridors.py", "nums = [n for n in nums if n > 0]", "nums = nums"),
@@ -99,11 +103,11 @@ MUTANTS = [
     ("collect.py", "(int(epoch // every) + 1) * every", "round(epoch / every) * every", CO),
     # GitHub Actions collector: Singapore weekday mornings only, no public holidays, quota backoff.
     ("collect.py", "if t.date() in holidays:", "if False:", CO),
-    ("collect.py", "t = now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now", "t = now.replace(tzinfo=None)",
+    ("collect.py", "return now.astimezone(SGT).replace(tzinfo=None) if now.tzinfo else now", "return now.replace(tzinfo=None)",
      CO),
     ("collect.py", "if t.weekday() >= 5:", "if t.weekday() > 5:", CO),
     ("collect.py", "if not lo <= t.time() <= end:", "if not lo <= t.time():", CO),
-    ("collect.py", "if t.time() >= nlo or t.time() <= nhi:", "if nlo <= t.time() <= nhi:", CO),
+    ("collect.py", "return t.time() >= nlo or t.time() <= nhi", "return nlo <= t.time() <= nhi", CO),
     ("collect.py", "            time.sleep(wait)\n", "", CO),
     # Quota exhausted after the backoff is a warning and exit 0; three tries, not four.
     ("collect.py", "if isinstance(e, QuotaExceeded):", "if False:", CO),
@@ -118,7 +122,35 @@ MUTANTS = [
     ("collect.py", "if x <= until + dt.timedelta(minutes=grace_min) and", "if x <= until and", CO),
     ("collect.py", "x = max(now.replace(second=0, microsecond=0), start)", "x = now.replace(second=0, microsecond=0)", CO),
     ("collect.py", "start - dt.timedelta(minutes=early_min) <= t < start", "False", CO),
-    ("collect.py", "if ok and (t.time() >= nlo or t.time() <= nhi):", "if False:", CO),
+    # Early triggers (from 04:10 SGT, because GitHub starts runs up to two hours late), the timeout bound, and night
+    # runs told from morning ones by the cron that fired.
+    ("collect.py", "EARLY_MIN = 150  #", "EARLY_MIN = 45  #", CO),
+    ("collect.py", "EARLY_MIN = 150  #", "EARLY_MIN = 160  #", CO),
+    ("collect.py", "JOB_TIMEOUT_MIN = 355  #", "JOB_TIMEOUT_MIN = 360  #", CO),
+    ("collect.py", "LAST_PULL_MIN = 5  #", "LAST_PULL_MIN = 0  #", CO),
+    ("collect.py", "LAST_PULL_MIN = 5  #", "LAST_PULL_MIN = 10  #", CO),
+    ("collect.py", "MAX_RUN_MIN = JOB_TIMEOUT_MIN - LAST_PULL_MIN", "MAX_RUN_MIN = JOB_TIMEOUT_MIN", CO),
+    ("collect.py", 'NIGHT_CRON = "10 17,19 * * *"', 'NIGHT_CRON = "10 17 * * *"', CO),
+    ("collect.py", "NIGHT_TIMEOUT_MIN = 30  #", "NIGHT_TIMEOUT_MIN = 90  #", CO),
+    ("collect.py", 'return "night" if schedule.strip() == NIGHT_CRON else "morning"', 'return "morning"', CO),
+    ("collect.py", "    if not schedule:\n        return None\n", "", CO),
+    ("collect.py", 'trigger = "night" if in_night(t) else "morning"', 'trigger = "morning"', CO),
+    ("collect.py", '    if trigger == "night":\n        if in_night(t):', '    if trigger == "night":\n        if True:', CO),
+    ("collect.py", '    if trigger == "night":\n        if in_night(t):', '    if False:\n        if in_night(t):', CO),
+    ("collect.py", "if night is not None and in_night(t, night):", "if in_night(t, night or NIGHT_WINDOW):", CO),
+    ("collect.py", "ok, reason = collection_window(t, holidays, night=None)", "ok, reason = collection_window(t, holidays)", CO),
+    ("collect.py", "        if cap < until:", "        if False:", CO),
+    ("collect.py", "began = sgt_naive(job_start) if job_start is not None else t", "began = t", CO),
+    ("collect.py", "if job_start else None\n    ok, start, until, reason = loop_plan(",
+     "if False else None\n    ok, start, until, reason = loop_plan(", CO),
+    ("collect.py", "trigger=trigger_of(schedule), job_start=began)", "trigger=None, job_start=began)", CO),
+    (COLLECT_YML, '"10 20 * * 0-4"', '"20 22 * * 0-4"', CO),
+    (COLLECT_YML, '    - cron: "51 21 * * 0-4"      # 05:51 SGT: backup\n', "", CO),
+    (COLLECT_YML, "&& 30 || 355 }}", "&& 30 || 240 }}", CO),
+    (COLLECT_YML, "&& 30 || 355 }}", "&& 120 || 355 }}", CO),
+    (COLLECT_YML, "github.event.schedule == '10 17,19 * * *'", "github.event.schedule == '10 17 * * *'", CO),
+    (COLLECT_YML, ' --schedule "$SCHEDULE"', "", CO),
+    (COLLECT_YML, "          JOB_START: ${{ steps.t0.outputs.epoch }}\n", "", CO),
     ("collect.py", 'if r.get("status", "").startswith("ok")]', 'if r.get("status", "")]', CO),
     ("collect.py", "while (left := (t - clock()).total_seconds()) > 0:",
      "while (left := (t - clock()).total_seconds()) > 600:", CO),
@@ -179,6 +211,21 @@ MUTANTS = [
     ("busarrival.py", "if t.date() in holidays:", "if False:", BA),
     ("busarrival.py", "if self.clean >= self.recover and self.period > self.base:", "if False:", BA),
     ("busarrival.py", "            sleep(pause)\n", "", BA),
+    # Bus Arrival: early triggers and the timeout bound.
+    ("busarrival.py", "EARLY_MIN = 150  #", "EARLY_MIN = 45  #", BA),
+    ("busarrival.py", "EARLY_MIN = 150  #", "EARLY_MIN = 160  #", BA),
+    ("busarrival.py", "JOB_TIMEOUT_MIN = 355  #", "JOB_TIMEOUT_MIN = 360  #", BA),
+    ("busarrival.py", "FINISH_MIN = 5   #", "FINISH_MIN = 0   #", BA),
+    ("busarrival.py", "MAX_RUN_MIN = JOB_TIMEOUT_MIN - FINISH_MIN", "MAX_RUN_MIN = JOB_TIMEOUT_MIN", BA),
+    ("busarrival.py", "    until = min(until, cap)\n", "", BA),
+    ("busarrival.py", "cap = sgt(job_start or now)", "cap = sgt(now)", BA),
+    ("busarrival.py", "if job_start else None\n    start, until, reason = window(now, job_start=began)",
+     "if False else None\n    start, until, reason = window(now, job_start=began)", BA),
+    (BUSARRIVAL_YML, '"15 20 * * 0-4"', '"0 22 * * 0-4"', BA),
+    (BUSARRIVAL_YML, "timeout-minutes: 355", "timeout-minutes: 260", BA),
+    (BUSARRIVAL_YML, '          if [ "$DRY_RUN" = true ]; then echo "dry run: would poll $START to $UNTIL SGT"; exit 0; fi\n',
+     "", BA),
+    (BUSARRIVAL_YML, '--job-start "$JOB_START"', "", BA),
     # Bus Arrival inference and metrics.
     ("busarrival_analysis.py", 'if trk["how"] == "active" and e["monitored"] == 1 and e["eta"] <= t:',
      'if trk["how"] == "active" and e["eta"] <= t:', BA),
@@ -211,16 +258,23 @@ class HarnessError(RuntimeError):
     pass
 
 
+def target(name):
+    """A module in src/, or a path from the repository root."""
+    return ROOT / name if "/" in name else SRC / name
+
+
 def preflight():
     """Validate every target before any write; retain exact bytes for restoration."""
-    originals = {m[0]: (SRC / m[0]).read_bytes() for m in MUTANTS}
+    originals = {m[0]: target(m[0]).read_bytes() for m in MUTANTS}
     for name, old, new, *_ in MUTANTS:
         # Replacement anchors use LF independently of the checkout's line endings.
         source = originals[name].decode("utf-8").replace("\r\n", "\n")
         if source.count(old) != 1 or old == new:
             raise HarnessError(f"target must occur exactly once and change {name}: {old[:70]}")
+        if not name.endswith(".py"):
+            continue
         try:
-            compile(source.replace(old, new), str(SRC / name), "exec")
+            compile(source.replace(old, new), str(target(name)), "exec")
         except (SyntaxError, ValueError) as exc:
             raise HarnessError(f"invalid mutant syntax in {name}: {exc}") from exc
     return originals
@@ -286,9 +340,9 @@ def main():
         for index, (name, old, new, *files) in enumerate(MUTANTS, 1):
             # Refuse to overwrite changes made after preflight (e.g. another reviewer).
             for filename, original in originals.items():
-                if (SRC / filename).read_bytes() != original:
+                if target(filename).read_bytes() != original:
                     raise HarnessError(f"source changed during this run: {filename}")
-            path = SRC / name
+            path = target(name)
             original = originals[name]
             source = original.decode("utf-8").replace("\r\n", "\n")
             mutant = source.replace(old, new)
@@ -304,8 +358,8 @@ def main():
                          f"p = Path({str(path)!r}); compile(p.read_bytes(), str(p), 'exec'); "
                          f"m = importlib.import_module({path.stem!r}); "
                          "assert Path(m.__file__).resolve() == p.resolve()")
-                imported = run_child(["-c", check], env)
-                if imported.returncode != 0:
+                imported = run_child(["-c", check], env) if name.endswith(".py") else None
+                if imported is not None and imported.returncode != 0:
                     raise HarnessError(f"mutant failed compilation/import in {name}; not a kill\n{diagnostics(imported)}")
                 failed, _, result = pytest_result(case, env, stop_early=True, files=files[0] if files else None)
             finally:
