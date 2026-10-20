@@ -23,7 +23,11 @@ The AccountKey is read from LTA_KEY at start-up and never written anywhere.
 
 GitHub Actions (.github/workflows/collect.yml) runs one job per weekday morning that loops `next` (wait for the next
 slot on the 15-minute grid from 06:30, skipping slots another job already pulled) and `once` until the 10:00 pull,
-and a single pull twice every night (01:10 and 03:10) for the night reference. `gate` (loop_plan) converts the runner's UTC
+and one job every night that loops the same way on the hour from 22:00 to 05:00, for the night reference (GitHub
+dropped the single 01:10 night pull every night of 16-20 October 2026, and on 20 October started the 03:10 one at
+05:27, too late). The night trigger fires at 21:07 SGT and two backups follow at 22:37 and 00:13: a job ends by
+its timeout, and the backup waiting in the concurrency group takes the night's remaining slots. Pulls after
+midnight go in the next day's folder. `gate` (loop_plan) converts the runner's UTC
 clock to Singapore time (UTC+08:00, no daylight saving) and skips weekend and public-holiday mornings
 (demand.HOLIDAYS_2026); night pulls run every night. GitHub starts scheduled runs up to two hours late, so the
 morning job is triggered from 04:10; it waits for 06:30, and a job that started early still ends inside its timeout. `once` makes exactly one speed-band pull; a quota fault
@@ -62,16 +66,18 @@ PAGE = 500
 EXPECTED_LINKS = 143787
 SGT = dt.timezone(dt.timedelta(hours=8), "SGT")
 COLLECT_WINDOW = (dt.time(6, 30), dt.time(10, 0))
-NIGHT_WINDOW = (dt.time(22, 0), dt.time(5, 0))  # priority.NIGHT; two pulls a night, every night
+NIGHT_WINDOW = (dt.time(22, 0), dt.time(5, 0))  # priority.NIGHT; pulled on the hour, every night
 LATE_GRACE_MIN = 20  # GitHub starts scheduled runs late; a 10:00 run that starts at 10:12 still belongs to the morning
 QUOTA_BACKOFF = (60, 120)  # waits between the three tries of a page that hit the quota
 EARLY_MIN = 150  # a morning loop job may start up to 150 minutes before 06:30 (04:00 SGT) and waits for it
 JOB_TIMEOUT_MIN = 355  # timeout-minutes of a morning job in collect.yml (GitHub-hosted jobs stop at 360)
 LAST_PULL_MIN = 5  # the last pull and its commit (pulls took 26-72 s on 19 October 2026)
 MAX_RUN_MIN = JOB_TIMEOUT_MIN - LAST_PULL_MIN  # a job's last pull starts at most 350 minutes after the job started
-NIGHT_CRON = "10 17,19 * * *"  # collect.yml's night trigger (01:10 and 03:10 SGT); every other cron is a morning one
-NIGHT_TIMEOUT_MIN = 30  # timeout-minutes of a night run, so one that GitHub started late holds the group briefly
+NIGHT_CRONS = ("7 13 * * *", "37 14 * * *", "13 16 * * *")  # collect.yml's night triggers, 21:07, 22:37, 00:13 SGT;
+# every other cron is a morning one
+NIGHT_EARLY_MIN = 60  # a night loop job may start up to 60 minutes before 22:00 (21:00 SGT) and waits for it
 LOOP_EVERY = 900  # seconds between the morning loop's pulls (the 15-minute grid from 06:30)
+NIGHT_EVERY = 3600  # seconds between the night loop's pulls (on the hour, 22:00-05:00)
 MANIFEST_COLUMNS = ["snapshot_sgt", "file", "rows", "sha256", "bytes", "pull_seconds", "quota_retries", "status"]
 LINK_COLUMNS = ["LinkID", "RoadName", "RoadCategory", "StartLon", "StartLat", "EndLon", "EndLat"]
 ECHO = False  # print log lines (GitHub Actions) instead of appending them to collector.log
@@ -193,7 +199,23 @@ def trigger_of(schedule):
     """"night" or "morning" for the cron that started a scheduled run (github.event.schedule); None if unknown."""
     if not schedule:
         return None
-    return "night" if schedule.strip() == NIGHT_CRON else "morning"
+    return "night" if schedule.strip() in NIGHT_CRONS else "morning"
+
+
+def night_of(t, night=NIGHT_WINDOW):
+    """(start, end) of the night a naive Singapore time belongs to: 22:00 to 05:00 the next morning. From noon on
+    that is the coming night; before noon, the night that ended (or is ending) this morning."""
+    lo, hi = night
+    d = t.date() if t.time() >= dt.time(12) else t.date() - dt.timedelta(days=1)
+    return dt.datetime.combine(d, lo), dt.datetime.combine(d + dt.timedelta(days=1), hi)
+
+
+def capped(until, began, max_run_min=MAX_RUN_MIN):
+    """(until, note): a job's last pull is at most max_run_min minutes after the job began (timeout-minutes)."""
+    cap = began + dt.timedelta(minutes=max_run_min)
+    if cap < until:
+        return cap, f"; last pull by {cap:%H:%M}, {max_run_min} min after the job started"
+    return until, ""
 
 
 def sgt_naive(now):
@@ -201,26 +223,30 @@ def sgt_naive(now):
 
 
 def loop_plan(now, force=False, iterations=1, every=LOOP_EVERY, holidays=HOLIDAYS_2026, early_min=EARLY_MIN,
-              trigger=None, job_start=None, max_run_min=MAX_RUN_MIN):
+              trigger=None, job_start=None, max_run_min=MAX_RUN_MIN, night_early_min=NIGHT_EARLY_MIN):
     """(collect?, start, until, reason) for the pull loop of a run starting at `now` (naive Singapore times).
 
     A weekday morning: one job pulls on the 15-minute grid from 06:30 to 10:00, so it may start up to early_min
-    minutes before 06:30 (it waits) or late (it pulls at once, then joins the grid). Its last pull is at most
-    max_run_min minutes after `job_start` (default `now`), so a job that started very early still ends inside
-    timeout-minutes; a later trigger waiting in the concurrency group then takes the slots that are left. A
-    night run (the priority screen's free-flow reference) pulls once, and only inside the night window. A manual
-    run (force) pulls `iterations` times, `every` seconds apart, starting now.
+    minutes before 06:30 (it waits) or late (it pulls at once, then joins the grid). Every night (the priority
+    screen's free-flow reference): one job pulls on the hour from 22:00 to 05:00, so it may start up to
+    night_early_min minutes before 22:00, or late. Either way the last pull is at most max_run_min minutes after
+    `job_start` (default `now`), so a job ends inside timeout-minutes; a later trigger waiting in the concurrency
+    group then takes the slots that are left. A manual run (force) pulls `iterations` times, `every` seconds
+    apart, starting now.
     `trigger` is "night" or "morning" (the cron that fired, see trigger_of). None infers it from the time: inside
     the night window is a night run. From 04:00 to 05:00 both are possible, so the workflow passes the cron.
     """
     t = sgt_naive(now).replace(second=0, microsecond=0)
     if force:
         return True, t, t + dt.timedelta(seconds=every * (iterations - 1)), f"manual run: {iterations} pull(s)"
+    began = sgt_naive(job_start) if job_start is not None else t
     if trigger is None:
         trigger = "night" if in_night(t) else "morning"
     if trigger == "night":
-        if in_night(t):
-            return True, t, t, f"{t:%a %Y-%m-%d %H:%M} SGT is a night pull (free-flow reference)"
+        start, until = night_of(t)
+        if start - dt.timedelta(minutes=night_early_min) <= t <= until:
+            until, note = capped(until, began, max_run_min)
+            return True, start, until, f"{t:%a %Y-%m-%d %H:%M} SGT: night loop {start:%H:%M}-05:00, hourly{note}"
         nlo, nhi = NIGHT_WINDOW
         return False, None, None, f"{t:%H:%M} SGT: a night trigger outside {nlo:%H:%M}-{nhi:%H:%M} pulls nothing"
     ok, reason = collection_window(t, holidays, night=None)
@@ -228,12 +254,7 @@ def loop_plan(now, force=False, iterations=1, every=LOOP_EVERY, holidays=HOLIDAY
     start, until = dt.datetime.combine(t.date(), lo), dt.datetime.combine(t.date(), hi)
     if ok or (t.weekday() < 5 and t.date() not in holidays
               and start - dt.timedelta(minutes=early_min) <= t < start):
-        began = sgt_naive(job_start) if job_start is not None else t
-        cap = began + dt.timedelta(minutes=max_run_min)
-        note = ""
-        if cap < until:
-            until = cap
-            note = f"; last pull by {cap:%H:%M}, {max_run_min} min after the job started"
+        until, note = capped(until, began, max_run_min)
         return True, start, until, f"{t:%a %Y-%m-%d %H:%M} SGT: morning loop {lo:%H:%M}-{hi:%H:%M}{note}"
     return False, None, None, reason
 
@@ -242,14 +263,19 @@ def gate(now, force=False, iterations=1, every=LOOP_EVERY, schedule="", job_star
     """(collect?, reason, step outputs) of the workflow's gate step for a run at `now` (aware, the runner's clock).
 
     `schedule` is the cron that fired (github.event.schedule, empty for a manual run) and `job_start` the Unix
-    second the job started (empty if unknown).
+    second the job started (empty if unknown). `day` and `day2` are the dates of the first and last slot: a night
+    loop's pulls after midnight go in the next day's folder, so the workflow checks out and reads both.
     """
     stamp = sgt_minute(now)
     began = dt.datetime.fromtimestamp(int(job_start), dt.timezone.utc) if job_start else None
     ok, start, until, reason = loop_plan(now, force, iterations, every, trigger=trigger_of(schedule), job_start=began)
-    return ok, reason, dict(collect=str(ok).lower(), stamp=f"{stamp:%Y-%m-%dT%H:%M}", day=f"{stamp:%Y-%m-%d}",
-                            start=f"{start:%Y-%m-%dT%H:%M}" if ok else "",
-                            until=f"{until:%Y-%m-%dT%H:%M}" if ok else "", every=every if force else LOOP_EVERY)
+    night = ok and not force and (trigger_of(schedule) or ("night" if in_night(stamp) else "morning")) == "night"
+    first, last = (start, until) if ok else (stamp, stamp)
+    return ok, reason, dict(collect=str(ok).lower(), stamp=f"{stamp:%Y-%m-%dT%H:%M}", day=f"{first:%Y-%m-%d}",
+                            day2=f"{last:%Y-%m-%d}", start=f"{start:%Y-%m-%dT%H:%M}" if ok else "",
+                            until=f"{until:%Y-%m-%dT%H:%M}" if ok else "",
+                            every=every if force else (NIGHT_EVERY if night else LOOP_EVERY),
+                            grace=0 if night else LATE_GRACE_MIN)
 
 
 def next_pull(now, start, until, every=LOOP_EVERY, done=(), first=False, grace_min=LATE_GRACE_MIN, force=False):
@@ -279,14 +305,16 @@ def next_pull(now, start, until, every=LOOP_EVERY, done=(), first=False, grace_m
     return None
 
 
-def done_pulls(manifest):
-    """Snapshot times of the successful pulls in a day's manifest.csv (empty when there is none yet)."""
-    path = pathlib.Path(manifest)
-    if not path.exists():
-        return []
-    with open(path, newline="", encoding="utf-8") as f:
-        return [dt.datetime.strptime(r["snapshot_sgt"], "%Y-%m-%dT%H:%M") for r in csv.DictReader(f)
-                if r.get("status", "").startswith("ok")]
+def done_pulls(*manifests):
+    """Snapshot times of the successful pulls in the days' manifest.csv files (missing files count as empty)."""
+    out = []
+    for path in dict.fromkeys(pathlib.Path(m) for m in manifests):
+        if not path.exists():
+            continue
+        with open(path, newline="", encoding="utf-8") as f:
+            out += [dt.datetime.strptime(r["snapshot_sgt"], "%Y-%m-%dT%H:%M") for r in csv.DictReader(f)
+                    if r.get("status", "").startswith("ok")]
+    return sorted(out)
 
 
 def wait_until(t, clock=None, sleep=time.sleep):
@@ -497,7 +525,7 @@ if __name__ == "__main__":
     r.add_argument("--expected-links", type=int, default=EXPECTED_LINKS)
     sub.add_parser("status")
     sub.add_parser("stop")
-    g = sub.add_parser("gate", help="is now a weekday 06:30-10:00 SGT morning that is not a public holiday?")
+    g = sub.add_parser("gate", help="plan this run's loop: a weekday morning, a night, or a manual run")
     g.add_argument("--force", action="store_true", help="collect anyway (manual runs)")
     g.add_argument("--iterations", type=int, default=1, help="manual runs: pulls in the loop")
     g.add_argument("--every", type=int, default=LOOP_EVERY, help="manual runs: seconds between pulls")
@@ -507,7 +535,8 @@ if __name__ == "__main__":
     nx.add_argument("--start", required=True)
     nx.add_argument("--until", required=True)
     nx.add_argument("--every", type=int, default=LOOP_EVERY)
-    nx.add_argument("--manifest", required=True, help="the day's speed-band manifest.csv")
+    nx.add_argument("--manifest", required=True, nargs="+", help="the days' speed-band manifest.csv files")
+    nx.add_argument("--grace", type=int, default=LATE_GRACE_MIN, help="minutes a late first pull may pass --until")
     nx.add_argument("--first", action="store_true")
     nx.add_argument("--force", action="store_true", help="the first pull ignores earlier pulls (manual runs)")
     o = sub.add_parser("once", help="one speed-band pull and one incident poll")
@@ -526,7 +555,7 @@ if __name__ == "__main__":
         fmt = "%Y-%m-%dT%H:%M"
         now = dt.datetime.now(SGT).replace(tzinfo=None)
         t = next_pull(now, dt.datetime.strptime(a.start, fmt), dt.datetime.strptime(a.until, fmt), a.every,
-                      done_pulls(a.manifest), a.first, force=a.force)
+                      done_pulls(*a.manifest), a.first, grace_min=a.grace, force=a.force)
         if t is None:
             print("no pull left in this run", file=sys.stderr)
             sys.exit(10)
