@@ -164,11 +164,13 @@ def track(answers):
 
     for t, new in answers:
         if t_prev is not None and (t - t_prev).total_seconds() > MAX_GAP_S:
+            # Arrived tracks stay listed to prevent counting a repeated zero ETA twice.
+            # A missing interval still breaks headways when none need closing below.
+            if not any(trk["how"] == "active" for trk in active):
+                events.append(("break", t_prev))
             for trk in active:
                 if trk["how"] == "active":
                     close(trk, "gap", lo=t_prev)
-            if not active:
-                events.append(("break", t_prev))
             active = []
         old = [trk for trk in active]
         if t_prev is None or not old:
