@@ -2,28 +2,44 @@
   "mode": "weekday_am_peak_multi_morning",
   "snapshot_timezone": "Asia/Singapore",
   "peak": {
-    "min_snapshot": "2026-09-28T07:47:00",
-    "max_snapshot": "2026-10-14T09:30:00",
-    "n_snapshots": 15
+    "min_snapshot": "2026-10-16T08:37:00",
+    "max_snapshot": "2026-10-23T09:30:00",
+    "n_snapshots": 46
   },
   "night": {
-    "min_snapshot": "2026-09-26T22:05:00",
-    "max_snapshot": "2026-10-14T05:00:00",
-    "n_snapshots": 89
+    "min_snapshot": "2026-10-16T04:18:00",
+    "max_snapshot": "2026-10-23T05:00:00",
+    "n_snapshots": 16
   },
   "mornings": [
     {
-      "date": "2026-09-28",
+      "date": "2026-10-16",
+      "n_snapshots": 4
+    },
+    {
+      "date": "2026-10-19",
       "n_snapshots": 6
     },
     {
-      "date": "2026-10-14",
+      "date": "2026-10-20",
+      "n_snapshots": 9
+    },
+    {
+      "date": "2026-10-21",
+      "n_snapshots": 9
+    },
+    {
+      "date": "2026-10-22",
+      "n_snapshots": 9
+    },
+    {
+      "date": "2026-10-23",
       "n_snapshots": 9
     }
   ],
   "min_snapshots": 4,
-  "min_mornings_per_link": 1,
+  "min_mornings_per_link": 3,
   "min_valid_coverage": 0.5,
   "eligible_links": 3378,
-  "csv_sha256": "9b0e13e515097e06fc03e1d65aadd5eb15dba17ba7f054f3c108045fe184b340"
+  "csv_sha256": "d2e283e3a969a44ca7a2b647a870945046bb06922c58e7f7d4186aa43fb5e6a3"
 }

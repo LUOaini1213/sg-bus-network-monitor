@@ -38,8 +38,9 @@ def snapshot_time(path):
 
 
 def snapshot_files(directory=None):
+    """Snapshot files under the directory, flat (laptop collector) or in day folders (the data-collect branch)."""
     d = Path(directory) if directory is not None else RAW / "speedbands"
-    return sorted(d.glob("sb_*.csv.gz"), key=snapshot_time)
+    return sorted(d.rglob("sb_*.csv.gz"), key=snapshot_time)
 
 
 def watched_links(db=DB, links_csv=None):

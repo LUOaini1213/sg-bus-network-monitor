@@ -249,34 +249,51 @@ def boot_ci(stats, idx_sets, base=None):
     return out
 
 
+def day_weights(days, n_boot, rng):
+    """Whole-day bootstrap as per-anchor weights: n_boot draws of the test days with replacement; an anchor's weight
+    is the number of times its day was drawn. Days with more anchors then count for more, as in the pooled error."""
+    u, inv = np.unique(np.asarray(days), return_inverse=True)
+    draws = rng.integers(0, len(u), size=(n_boot, len(u)))
+    counts = np.stack([np.bincount(d, minlength=len(u)) for d in draws])
+    return counts[:, inv].astype(float)
+
+
+def boot_ci_days(stats, weights, base=None):
+    """95% intervals of MAE (and of the paired difference from the base model) over whole-day resamples."""
+    a, _, c = stats
+    maes = (weights @ a) / (weights @ c)
+    out = {"mae_lo_day": float(np.percentile(maes, 2.5)), "mae_hi_day": float(np.percentile(maes, 97.5))}
+    if base is not None:
+        ba, _, bc = base
+        d = maes - (weights @ ba) / (weights @ bc)
+        out.update(diff_vs_persistence_lo_day=float(np.percentile(d, 2.5)),
+                   diff_vs_persistence_hi_day=float(np.percentile(d, 97.5)))
+    return out
+
+
 # ---------------------------------------------------------------- run
-def run(test_from=TEST_FROM, seeds=(0, 1, 2, 3, 4), gnn=True, out=OUT, epochs=200):
+def prepare():
+    """Network, time grid and features shared by every split."""
     links = select_links()
     speed_cache.build()
     times, link_ids, kmh = speed_cache.load(links=links.LinkID.to_numpy())
     grid, X = to_grid(times, kmh)
     src, dst = build_graph(links)
-    n = X.shape[1]
-    idx = anchors(X)
-    train, val, test = split(grid, idx, test_from)
-    if min(len(train), len(val), len(test)) == 0:
-        raise SystemExit(f"not enough data: train {len(train)}, val {len(val)}, test {len(test)} anchor slots")
-    slots_per_day = 1440 // STEP_MIN
-    table, tod, wk = ha_table(X, grid, train, slots_per_day)
+    return {"links": links, "times": times, "grid": grid, "X": X, "src": src, "dst": dst, "idx": anchors(X),
+            "nb": neighbour_mean(X, src, dst, X.shape[1]), "tf": time_features(grid),
+            "cat": links.RoadCategory.to_numpy(float)}
+
+
+def fit_predict(ctx, train, val, test, seeds=(0, 1, 2, 3, 4), gnn=True, epochs=200):
+    """Every model fitted on `train` (early stopping on `val`), predicting `test`: {(model, h): pred}, GNN info."""
+    X, grid, nb, tf, cat = ctx["X"], ctx["grid"], ctx["nb"], ctx["tf"], ctx["cat"]
+    table, tod, wk = ha_table(X, grid, train, 1440 // STEP_MIN)
     ha_fn = lambda ix, h: historical_average(table, tod, wk, ix, h)  # noqa: E731
-    nb = neighbour_mean(X, src, dst, n)
-    tf = time_features(grid)
     train_rows = np.unique(np.r_[train, *[train - k for k in range(1, LAGS)]])
     link_mean = np.nanmean(np.where(np.isfinite(X[train_rows]), X[train_rows], np.nan), axis=0)
     link_mean = np.where(np.isfinite(link_mean), link_mean, np.nanmean(link_mean))
-    cat = links.RoadCategory.to_numpy(float)
-    am = np.asarray([dt.time(7, 30) <= pd.Timestamp(g).time() <= dt.time(9, 30) and pd.Timestamp(g).weekday() < 5
-                     for g in grid[test]])
-    rng = np.random.default_rng(2026)
-    boot_all = block_indices(len(test), BLOCK, N_BOOT, rng)
     preds = {}
     for h in HORIZONS:
-        true = X[test + h]
         preds[("persistence", h)] = persistence(X, test, h)
         preds[("historical_average", h)] = ha_fn(test, h)
         model = fit_lgbm(X, nb, tf, train, val, link_mean, cat, ha_fn, h)
@@ -284,46 +301,115 @@ def run(test_from=TEST_FROM, seeds=(0, 1, 2, 3, 4), gnn=True, out=OUT, epochs=20
     gnn_info = None
     if gnn:
         import forecast_gnn
-        gnn_preds, gnn_info = forecast_gnn.train_and_predict(X, grid, tf, src, dst, train, val, test, link_mean,
-                                                             seeds=seeds, epochs=epochs)
+        gnn_preds, gnn_info = forecast_gnn.train_and_predict(X, grid, tf, ctx["src"], ctx["dst"], train, val, test,
+                                                             link_mean, seeds=seeds, epochs=epochs)
         for h in HORIZONS:
             preds[("gnn_mean_of_seeds", h)] = gnn_preds["mean"][h]
             for s, p in gnn_preds["per_seed"].items():
                 preds[(f"gnn_seed{s}", h)] = p[h]
+    return preds, gnn_info
+
+
+def error_stats(ctx, preds, test):
+    """{(model, h): per-anchor (sum |e|, sum e^2, count)} for the test anchors."""
+    return {(name, h): errors_by_anchor(p, ctx["X"][test + h]) for (name, h), p in preds.items()}
+
+
+def metrics_table(ctx, stats, test):
+    """MAE/RMSE with 95% moving-block and whole-day bootstrap intervals, paired against persistence."""
+    grid = ctx["grid"]
+    am = np.asarray([dt.time(7, 30) <= pd.Timestamp(g).time() <= dt.time(9, 30) and pd.Timestamp(g).weekday() < 5
+                     for g in grid[test]])
+    rng = np.random.default_rng(2026)
+    boot_all = block_indices(len(test), BLOCK, N_BOOT, rng)
+    days = pd.DatetimeIndex(grid[test]).date
+    weights = day_weights(days, N_BOOT, rng)
     rows = []
-    for (name, h), p in preds.items():
-        true = X[test + h]
-        st = errors_by_anchor(p, true)
-        base = errors_by_anchor(preds[("persistence", h)], true)
+    for (name, h), st in stats.items():
+        base = None if name == "persistence" else stats[("persistence", h)]
         mae, rmse = mae_rmse(st)
         am_mae, am_rmse = mae_rmse(tuple(x[am] for x in st))
         rows.append({"model": name, "horizon_min": h * STEP_MIN, "mae": mae, "rmse": rmse,
-                     **boot_ci(st, boot_all, None if name == "persistence" else base),
+                     **boot_ci(st, boot_all, base), **boot_ci_days(st, weights, base),
                      "am_peak_mae": am_mae, "am_peak_rmse": am_rmse, "n_errors": int(st[2].sum())})
-    metrics = pd.DataFrame(rows)
+    return pd.DataFrame(rows), am
+
+
+def _summary(ctx, parts, am, gnn_info, **extra):
+    grid, links, X = ctx["grid"], ctx["links"], ctx["X"]
+    day = lambda ix: sorted({str(x) for x in pd.DatetimeIndex(grid[ix]).date})  # noqa: E731
+    return {"links": int(X.shape[1]), "edges": int(len(ctx["src"])),
+            "expressway_links": int((links.RoadCategory == 1).sum()), "bus_corridor_min_bph": BUS_BPH,
+            "step_min": STEP_MIN, "lags": LAGS, "horizons_min": [h * STEP_MIN for h in HORIZONS],
+            "snapshots": int(len(ctx["times"])), "grid_slots": int(len(grid)),
+            "filled_slots": int(np.isfinite(X).any(axis=1).sum()),
+            "anchors": {**{k: int(len(v)) for k, v in parts.items()}, "test_am_peak": int(am.sum())},
+            "days": {k: day(v) for k, v in parts.items()},
+            "bootstrap": {"block_slots": BLOCK, "resamples": N_BOOT, "whole_days": True}, "gnn": gnn_info, **extra}
+
+
+def run(test_from=TEST_FROM, seeds=(0, 1, 2, 3, 4), gnn=True, out=OUT, epochs=200, val_days=VAL_DAYS):
+    """Time-ordered split: training days, then val_days validation days, then the test days from test_from."""
+    ctx = prepare()
+    train, val, test = split(ctx["grid"], ctx["idx"], test_from, val_days)
+    if min(len(train), len(val), len(test)) == 0:
+        raise SystemExit(f"not enough data: train {len(train)}, val {len(val)}, test {len(test)} anchor slots")
+    preds, gnn_info = fit_predict(ctx, train, val, test, seeds, gnn, epochs)
+    metrics, am = metrics_table(ctx, error_stats(ctx, preds, test), test)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     metrics.round(4).to_csv(out / "forecast_metrics.csv", index=False, lineterminator="\n")
-    day = lambda ix: sorted({str(x) for x in pd.DatetimeIndex(grid[ix]).date})  # noqa: E731
-    summary = {"links": int(n), "edges": int(len(src)), "expressway_links": int((links.RoadCategory == 1).sum()),
-               "bus_corridor_min_bph": BUS_BPH, "step_min": STEP_MIN, "lags": LAGS,
-               "horizons_min": [h * STEP_MIN for h in HORIZONS],
-               "snapshots": int(len(times)), "grid_slots": int(len(grid)),
-               "filled_slots": int(np.isfinite(X).any(axis=1).sum()),
-               "anchors": {"train": int(len(train)), "val": int(len(val)), "test": int(len(test)),
-                           "test_am_peak": int(am.sum())},
-               "days": {"train": day(train), "val": day(val), "test": day(test)},
-               "bootstrap": {"block_slots": BLOCK, "resamples": N_BOOT}, "gnn": gnn_info}
+    summary = _summary(ctx, {"train": train, "val": val, "test": test}, am, gnn_info, split="time-ordered")
     (out / "forecast_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return metrics, summary
+
+
+def run_cv(seeds=(0, 1, 2, 3, 4), gnn=True, out=OUT, epochs=200):
+    """Leave one morning out: each day with anchors is the test day once, the day before it (the day after, for
+    the first) is the validation day, and the rest train. Errors are pooled over the out-of-fold predictions."""
+    ctx = prepare()
+    grid, idx = ctx["grid"], ctx["idx"]
+    keep = (pd.DatetimeIndex(grid[idx - (LAGS - 1)]).normalize()
+            == pd.DatetimeIndex(grid[idx + max(HORIZONS)]).normalize())   # no window across midnight
+    idx = idx[keep]
+    d = pd.DatetimeIndex(grid[idx]).date
+    days = sorted(set(d))
+    if len(days) < 3:
+        raise SystemExit(f"leave-one-morning-out needs 3 days with anchors, not {len(days)}")
+    stats, folds, info = {}, [], {}
+    for i, test_day in enumerate(days):
+        val_day = days[i - 1] if i > 0 else days[1]
+        test, val = idx[d == test_day], idx[d == val_day]
+        train = idx[(d != test_day) & (d != val_day)]
+        preds, gnn_info = fit_predict(ctx, train, val, test, seeds, gnn, epochs)
+        for k, st in error_stats(ctx, preds, test).items():
+            stats[k] = tuple(np.r_[a, b] for a, b in zip(stats[k], st)) if k in stats else st
+        folds.append({"test": str(test_day), "val": str(val_day), "train_anchors": int(len(train)),
+                      "val_anchors": int(len(val)), "test_anchors": int(len(test))})
+        info[str(test_day)] = gnn_info
+        print(f"fold {test_day}: train {len(train)}, val {len(val)}, test {len(test)} anchors", flush=True)
+    test_all = np.concatenate([idx[d == x] for x in days])
+    metrics, am = metrics_table(ctx, stats, test_all)
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    metrics.round(4).to_csv(out / "forecast_cv_metrics.csv", index=False, lineterminator="\n")
+    summary = _summary(ctx, {"test": test_all}, am, info, split="leave-one-morning-out", folds=folds)
+    (out / "forecast_cv_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return metrics, summary
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--test-from", default=str(TEST_FROM))
+    ap.add_argument("--val-days", type=int, default=VAL_DAYS)
+    ap.add_argument("--cv", action="store_true", help="leave one morning out instead of the time-ordered split")
     ap.add_argument("--no-gnn", action="store_true")
     ap.add_argument("--seeds", type=int, default=5)
     a = ap.parse_args()
-    m, s = run(dt.date.fromisoformat(a.test_from), seeds=tuple(range(a.seeds)), gnn=not a.no_gnn)
+    if a.cv:
+        m, s = run_cv(seeds=tuple(range(a.seeds)), gnn=not a.no_gnn)
+    else:
+        m, s = run(dt.date.fromisoformat(a.test_from), seeds=tuple(range(a.seeds)), gnn=not a.no_gnn,
+                   val_days=a.val_days)
     print(json.dumps({k: s[k] for k in ["links", "edges", "anchors", "days"]}, indent=1))
     print(m[~m.model.str.startswith("gnn_seed")].round(3).to_string(index=False))

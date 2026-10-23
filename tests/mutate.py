@@ -22,6 +22,7 @@ CO = ["test_collect.py"]
 FC = ["test_forecast.py"]
 SF = ["test_safety.py"]
 FI = ["test_finance.py"]
+CI = ["test_cloud_inputs.py"]
 BA = ["test_busarrival.py", "test_busarrival_analysis.py"]
 COLLECT_YML = ".github/workflows/collect.yml"
 BUSARRIVAL_YML = ".github/workflows/busarrival.yml"
@@ -177,7 +178,15 @@ MUTANTS = [
      CO),
     ("speed_cache.py", "out[pos[pos_ok]] = v[pos_ok]", "out[pos[pos_ok]] = v[:pos_ok.sum()]", CO),
     ("speed_cache.py", 'if str(z["signature"]) == sig:', "if True:", CO),
+    # Cloud rerun (23 October 2026): day folders on data-collect, inputs without the raw route files.
+    ("speed_cache.py", 'd.rglob("sb_*.csv.gz")', 'd.glob("sb_*.csv.gz")', CO),
+    ("cloud_inputs.py", 'pd.read_csv(path, dtype={"from_stop": str, "to_stop": str})', "pd.read_csv(path)", CI),
+    ("cloud_inputs.py", "link.symlink_to(dc, target_is_directory=True)", "link.mkdir(parents=True, exist_ok=True)", CI),
     # Forecasting.
+    ("forecast.py", "return counts[:, inv].astype(float)", "return np.ones((n_boot, len(inv)))", FC),
+    ("forecast.py", "draws = rng.integers(0, len(u), size=(n_boot, len(u)))", "draws = rng.integers(0, len(u), size=(n_boot, 1))",
+     FC),
+    ("forecast.py", "d = maes - (weights @ ba) / (weights @ bc)", "d = maes", FC),
     ("forecast.py", "if off[i] <= max_offset_min and off[i] < best[pos[i]]:", "if off[i] <= max_offset_min:", FC),
     ("forecast.py", "present[t - lags + 1:t + 1].all()", "present[t]", FC),
     ("forecast.py", "    idx = idx[first == last]\n", "", FC),

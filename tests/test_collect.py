@@ -83,6 +83,17 @@ def test_band_midpoints_and_missing_bands():
     np.testing.assert_allclose(v, [5.0, 25.0, 75.0, np.nan], equal_nan=True)
 
 
+def test_snapshot_files_reads_the_flat_archive_and_the_data_collect_day_folders(tmp_path):
+    row = [{"LinkID": 1, "SpeedBand": 2, "MinimumSpeed": 10, "MaximumSpeed": 19}]
+    collect.write_snapshot(row, dt.datetime(2026, 10, 20, 8, 0), directory=tmp_path / "2026-10-20")
+    collect.write_snapshot(row, dt.datetime(2026, 10, 19, 9, 0), directory=tmp_path / "2026-10-19")
+    collect.write_snapshot(row, dt.datetime(2026, 10, 14, 8, 0), directory=tmp_path)
+    (tmp_path / "links").mkdir()
+    (tmp_path / "links" / "speedband_links.csv.gz").write_bytes(b"")
+    assert [f.name for f in speed_cache.snapshot_files(tmp_path)] == [
+        "sb_20261014_0800.csv.gz", "sb_20261019_0900.csv.gz", "sb_20261020_0800.csv.gz"]
+
+
 def test_speed_cache_aligns_links_and_rebuilds_only_changed_days(tmp_path):
     raw, cache = tmp_path / "raw", tmp_path / "cache"
     raw.mkdir()

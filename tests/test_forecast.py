@@ -118,6 +118,28 @@ def test_block_bootstrap_draws_contiguous_blocks():
             assert (np.diff(row[b:b + 5]) == 1).all()
 
 
+def test_day_weights_resample_whole_days():
+    days = np.array(["a", "a", "a", "b", "c", "c"])
+    w = fc.day_weights(days, 400, np.random.default_rng(0))
+    assert w.shape == (400, 6)
+    # anchors of one day always share a weight, and each resample draws as many days as there are
+    assert (w[:, 0] == w[:, 1]).all() and (w[:, 1] == w[:, 2]).all() and (w[:, 4] == w[:, 5]).all()
+    assert (w[:, [0, 3, 4]].sum(1) == 3).all()
+    assert set(np.unique(w)) <= {0, 1, 2, 3} and (w == 0).any() and (w == 3).any()
+
+
+def test_day_bootstrap_interval_is_the_range_of_day_mixtures():
+    # two test days: day 1 has MAE 1 on 2 anchors, day 2 has MAE 4 on 1 anchor
+    a, c = np.array([1.0, 1.0, 4.0]), np.ones(3)
+    w = fc.day_weights(np.array([1, 1, 2]), 2000, np.random.default_rng(1))
+    out = fc.boot_ci_days((a, a ** 2, c), w, (a + 1, a ** 2, c))
+    assert out["mae_lo_day"] == 1.0 and out["mae_hi_day"] == 4.0   # both days drawn twice, either way
+    assert out["diff_vs_persistence_lo_day"] == out["diff_vs_persistence_hi_day"] == -1.0
+    # the pooled mixture of one draw of each day is (1 + 1 + 4) / 3
+    mid = (w[:, 0] == 1) & (w[:, 2] == 1)
+    np.testing.assert_allclose((w[mid] @ a) / (w[mid] @ c), 2.0)
+
+
 def test_paired_bootstrap_interval_of_a_constant_improvement():
     a = np.full(30, 2.0)
     c = np.full(30, 1)

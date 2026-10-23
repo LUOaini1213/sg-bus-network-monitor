@@ -10,62 +10,61 @@
     40,
     60
   ],
-  "snapshots": 269,
-  "grid_slots": 1267,
-  "filled_slots": 215,
+  "snapshots": 79,
+  "grid_slots": 563,
+  "filled_slots": 61,
   "anchors": {
-    "train": 82,
-    "val": 49,
-    "test": 15,
-    "test_am_peak": 3
+    "train": 4,
+    "val": 3,
+    "test": 8,
+    "test_am_peak": 8
   },
   "days": {
     "train": [
-      "2026-09-26",
-      "2026-09-27",
-      "2026-09-28",
-      "2026-09-29",
-      "2026-09-30"
+      "2026-10-19",
+      "2026-10-20"
     ],
     "val": [
-      "2026-10-01",
-      "2026-10-02"
+      "2026-10-21"
     ],
     "test": [
-      "2026-10-14"
+      "2026-10-22",
+      "2026-10-23"
     ]
   },
   "bootstrap": {
     "block_slots": 6,
-    "resamples": 1000
+    "resamples": 1000,
+    "whole_days": true
   },
   "gnn": {
-    "device": "cuda",
+    "device": "cpu",
     "hidden": 64,
     "layers": 2,
     "k_hops": 2,
     "seeds": {
       "0": {
-        "best_epoch": 193,
-        "val_mae": 3.6688
+        "best_epoch": 144,
+        "val_mae": 4.444
       },
       "1": {
-        "best_epoch": 199,
-        "val_mae": 3.6361
+        "best_epoch": 129,
+        "val_mae": 4.4794
       },
       "2": {
-        "best_epoch": 177,
-        "val_mae": 3.6882
+        "best_epoch": 160,
+        "val_mae": 4.474
       },
       "3": {
-        "best_epoch": 119,
-        "val_mae": 3.7394
+        "best_epoch": 143,
+        "val_mae": 4.4787
       },
       "4": {
-        "best_epoch": 189,
-        "val_mae": 3.6472
+        "best_epoch": 166,
+        "val_mae": 4.4515
       }
     },
     "parameters": 185827
-  }
+  },
+  "split": "time-ordered"
 }

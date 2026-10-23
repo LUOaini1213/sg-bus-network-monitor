@@ -1,29 +1,147 @@
 {
   "summary": {
-    "mornings": 2,
-    "median_pairwise_top20_overlap": 0.4,
-    "median_pairwise_kendall_tau": 0.7157951467380844,
-    "combined_top20_in_daily_top20_on_half_or_more_mornings": 19
+    "mornings": 6,
+    "median_pairwise_top20_overlap": 0.55,
+    "median_pairwise_kendall_tau": 0.8014581587531243,
+    "combined_top20_in_daily_top20_on_half_or_more_mornings": 17
   },
   "pairs": [
     {
-      "a": "2026-09-28",
-      "b": "2026-10-14",
+      "a": "2026-10-16",
+      "b": "2026-10-19",
       "common_links": 3378,
-      "top20_overlap": 0.4,
-      "kendall_tau": 0.7157951467380844
+      "top20_overlap": 0.3,
+      "kendall_tau": 0.7306540471987528
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-20",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7330400068416787
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-21",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.72218199437331
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-22",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.733989306295259
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-23",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.7382147137241125
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-20",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8051675076402292
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-21",
+      "common_links": 3378,
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.8014581587531243
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-22",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7965932066648179
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-23",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.8005390863730009
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-21",
+      "common_links": 3378,
+      "top20_overlap": 0.8,
+      "kendall_tau": 0.8279937791824443
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-22",
+      "common_links": 3378,
+      "top20_overlap": 0.75,
+      "kendall_tau": 0.8305949264785688
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-23",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8206996171340137
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-10-22",
+      "common_links": 3378,
+      "top20_overlap": 0.7,
+      "kendall_tau": 0.8224629875352726
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-10-23",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8170954291365689
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-10-23",
+      "common_links": 3378,
+      "top20_overlap": 0.65,
+      "kendall_tau": 0.8184521262829367
     }
   ],
   "vs_combined": [
     {
-      "morning": "2026-09-28",
-      "top20_overlap_with_combined": 0.55,
-      "kendall_tau_with_combined": 0.8669879364436787
+      "morning": "2026-10-16",
+      "top20_overlap_with_combined": 0.65,
+      "kendall_tau_with_combined": 0.7854552406930326
     },
     {
-      "morning": "2026-10-14",
+      "morning": "2026-10-19",
+      "top20_overlap_with_combined": 0.55,
+      "kendall_tau_with_combined": 0.8628012100619781
+    },
+    {
+      "morning": "2026-10-20",
       "top20_overlap_with_combined": 0.8,
-      "kendall_tau_with_combined": 0.8493451699340595
+      "kendall_tau_with_combined": 0.8895302641167814
+    },
+    {
+      "morning": "2026-10-21",
+      "top20_overlap_with_combined": 0.75,
+      "kendall_tau_with_combined": 0.8824046532245703
+    },
+    {
+      "morning": "2026-10-22",
+      "top20_overlap_with_combined": 0.85,
+      "kendall_tau_with_combined": 0.8842533695337753
+    },
+    {
+      "morning": "2026-10-23",
+      "top20_overlap_with_combined": 0.6,
+      "kendall_tau_with_combined": 0.8832090548151929
     }
   ]
 }
