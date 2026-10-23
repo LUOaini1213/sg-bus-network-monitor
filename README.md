@@ -154,6 +154,19 @@ The dates and snapshot counts are stored with a hash of the displayed CSV in `ou
 - **AM peak.** All 8 test anchors are in the AM peak, where the 14 October run had three and found no gain. The table above is the AM-peak result.
 - **How far this goes.** The models were trained on 4 anchors from two mornings, against 82 anchors in the first run, so this is not a like-for-like repeat: the graph net may need the full days the laptop archive had. What it does show is that the 14 October gain did not carry over to the next mornings measured.
 
+**Leave one morning out, 23 October 2026.** Each of the five mornings with anchors is the test morning once. The morning before it validates (the one after, for 19 October), and the rest train, 7 to 11 anchors per fold. All 15 anchors are predicted out of fold, all in the AM peak (`python src/forecast.py --cv`). The whole-day interval here resamples five test mornings. Two folds are thin: 19 October tests a single anchor, and the 20 October fold validates on one.
+
+| Model | 20 min MAE | 40 min MAE | 60 min MAE | 20 min RMSE |
+|---|---|---|---|---|
+| Persistence | 3.87 (3.66–4.16) | 4.76 (4.41–5.17) | 5.24 (4.80–5.70) | 7.93 |
+| Historical average | 4.52 (4.28–4.57) | 4.70 (4.46–4.76) | 4.90 (4.66–4.95) | 8.22 |
+| LightGBM | **3.58** (3.50–3.71) | **4.03** (3.86–4.24) | **4.10** (3.97–4.22) | **6.98** |
+| Graph neural net, mean of 5 seeds | 3.80 (3.62–4.10) | 4.45 (4.13–4.87) | 4.66 (4.28–5.04) | 7.47 |
+
+- **20 minutes.** The graph net is 0.07 km/h below persistence (paired interval 0.02–0.09, [0.03–0.12]), and every seed beats persistence on its own (3.81–3.83). LightGBM is 0.29 below (paired interval 0.15–0.47; the whole-day interval, 0.00–0.53, reaches zero).
+- **40 and 60 minutes.** LightGBM is best at every horizon: at 60 minutes it is 1.14 km/h below persistence, the graph net 0.58.
+- **Verdict.** With more test mornings, the 0.30 km/h gain of 14 October does not hold. The graph net still edges persistence at 20 minutes, by 0.05 to 0.07 km/h on both splits, but LightGBM does better at every horizon. Graph-net training again mostly ran to or near its 200-epoch cap (best epochs 133–199 across folds).
+
 ### Bus arrival predictions and bunching (first morning, 16 October 2026)
 
 `src/busarrival.py` polls DataMall Bus Arrival at the 41 stops of three shared trunk corridors (Marine Parade Rd, Telok Blangah Rd, Orchard Rd) every 2 minutes, and `src/busarrival_analysis.py` scores the predictions against inferred arrivals.

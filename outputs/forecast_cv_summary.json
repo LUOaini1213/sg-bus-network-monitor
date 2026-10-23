@@ -1,0 +1,219 @@
+{
+  "links": 3847,
+  "edges": 4116,
+  "expressway_links": 2598,
+  "bus_corridor_min_bph": 60,
+  "step_min": 20,
+  "lags": 3,
+  "horizons_min": [
+    20,
+    40,
+    60
+  ],
+  "snapshots": 79,
+  "grid_slots": 563,
+  "filled_slots": 61,
+  "anchors": {
+    "test": 15,
+    "test_am_peak": 15
+  },
+  "days": {
+    "test": [
+      "2026-10-19",
+      "2026-10-20",
+      "2026-10-21",
+      "2026-10-22",
+      "2026-10-23"
+    ]
+  },
+  "bootstrap": {
+    "block_slots": 6,
+    "resamples": 1000,
+    "whole_days": true
+  },
+  "gnn": {
+    "2026-10-19": {
+      "device": "cpu",
+      "hidden": 64,
+      "layers": 2,
+      "k_hops": 2,
+      "seeds": {
+        "0": {
+          "best_epoch": 199,
+          "val_mae": 4.6888
+        },
+        "1": {
+          "best_epoch": 186,
+          "val_mae": 4.7001
+        },
+        "2": {
+          "best_epoch": 171,
+          "val_mae": 4.738
+        },
+        "3": {
+          "best_epoch": 196,
+          "val_mae": 4.7263
+        },
+        "4": {
+          "best_epoch": 194,
+          "val_mae": 4.6993
+        }
+      },
+      "parameters": 185827
+    },
+    "2026-10-20": {
+      "device": "cpu",
+      "hidden": 64,
+      "layers": 2,
+      "k_hops": 2,
+      "seeds": {
+        "0": {
+          "best_epoch": 194,
+          "val_mae": 4.5904
+        },
+        "1": {
+          "best_epoch": 186,
+          "val_mae": 4.6086
+        },
+        "2": {
+          "best_epoch": 198,
+          "val_mae": 4.6151
+        },
+        "3": {
+          "best_epoch": 187,
+          "val_mae": 4.6046
+        },
+        "4": {
+          "best_epoch": 170,
+          "val_mae": 4.6083
+        }
+      },
+      "parameters": 185827
+    },
+    "2026-10-21": {
+      "device": "cpu",
+      "hidden": 64,
+      "layers": 2,
+      "k_hops": 2,
+      "seeds": {
+        "0": {
+          "best_epoch": 199,
+          "val_mae": 4.7121
+        },
+        "1": {
+          "best_epoch": 190,
+          "val_mae": 4.7284
+        },
+        "2": {
+          "best_epoch": 186,
+          "val_mae": 4.7418
+        },
+        "3": {
+          "best_epoch": 175,
+          "val_mae": 4.748
+        },
+        "4": {
+          "best_epoch": 188,
+          "val_mae": 4.7258
+        }
+      },
+      "parameters": 185827
+    },
+    "2026-10-22": {
+      "device": "cpu",
+      "hidden": 64,
+      "layers": 2,
+      "k_hops": 2,
+      "seeds": {
+        "0": {
+          "best_epoch": 165,
+          "val_mae": 4.4575
+        },
+        "1": {
+          "best_epoch": 165,
+          "val_mae": 4.4468
+        },
+        "2": {
+          "best_epoch": 137,
+          "val_mae": 4.4949
+        },
+        "3": {
+          "best_epoch": 133,
+          "val_mae": 4.4602
+        },
+        "4": {
+          "best_epoch": 195,
+          "val_mae": 4.4054
+        }
+      },
+      "parameters": 185827
+    },
+    "2026-10-23": {
+      "device": "cpu",
+      "hidden": 64,
+      "layers": 2,
+      "k_hops": 2,
+      "seeds": {
+        "0": {
+          "best_epoch": 196,
+          "val_mae": 4.6496
+        },
+        "1": {
+          "best_epoch": 172,
+          "val_mae": 4.6653
+        },
+        "2": {
+          "best_epoch": 190,
+          "val_mae": 4.6765
+        },
+        "3": {
+          "best_epoch": 167,
+          "val_mae": 4.6762
+        },
+        "4": {
+          "best_epoch": 135,
+          "val_mae": 4.6697
+        }
+      },
+      "parameters": 185827
+    }
+  },
+  "split": "leave-one-morning-out",
+  "folds": [
+    {
+      "test": "2026-10-19",
+      "val": "2026-10-20",
+      "train_anchors": 11,
+      "val_anchors": 3,
+      "test_anchors": 1
+    },
+    {
+      "test": "2026-10-20",
+      "val": "2026-10-19",
+      "train_anchors": 11,
+      "val_anchors": 1,
+      "test_anchors": 3
+    },
+    {
+      "test": "2026-10-21",
+      "val": "2026-10-20",
+      "train_anchors": 9,
+      "val_anchors": 3,
+      "test_anchors": 3
+    },
+    {
+      "test": "2026-10-22",
+      "val": "2026-10-21",
+      "train_anchors": 8,
+      "val_anchors": 3,
+      "test_anchors": 4
+    },
+    {
+      "test": "2026-10-23",
+      "val": "2026-10-22",
+      "train_anchors": 7,
+      "val_anchors": 4,
+      "test_anchors": 4
+    }
+  ]
+}
