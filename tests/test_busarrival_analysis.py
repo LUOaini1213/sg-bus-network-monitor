@@ -125,6 +125,55 @@ def test_a_gap_in_the_answers_closes_tracks_without_arrivals():
     assert heads.empty
 
 
+@pytest.mark.parametrize("gap_minutes", [5, 5 + 1 / 60, 18, 24 * 60],
+                         ids=["at-gap-limit", "over-gap-limit", "missing-sweeps", "next-day"])
+def test_gap_after_zero_arrival_breaks_headways_even_with_no_open_tracks(gap_minutes):
+    resumed = 2 + gap_minutes
+    lines = [answer(0, [1]), answer(2, [1]), answer(resumed, [resumed + 1]),
+             answer(resumed + 2, [resumed + 1])]
+    tracks, events = arrivals(lines)
+    _, heads, _ = an.infer(lines)
+    assert [track["how"] for track in tracks] == ["zero", "zero"]
+    assert [when for kind, when in events if kind == "arrival"] == [at(1), at(resumed + 1)]
+    if gap_minutes * 60 > an.MAX_GAP_S:
+        assert [when for kind, when in events if kind == "break"] == [at(2)]
+        assert heads.empty
+    else:
+        assert not any(kind == "break" for kind, _ in events)
+        assert heads.headway_min.tolist() == [resumed]
+
+
+@pytest.mark.parametrize("state", ["empty", "active", "mixed", "already-seen-at-stop"])
+def test_gap_breaks_headways_for_every_retained_track_state(state):
+    if state == "empty":
+        lines = [answer(0, [1]), answer(2, [])]
+    elif state == "active":
+        lines = [answer(0, [1, 11]), answer(2, [11])]
+    elif state == "mixed":
+        lines = [answer(0, [1, 11]), answer(2, [1, 11])]
+    else:
+        # A track first seen with an ETA in the past has no observed arrival interval.
+        lines = [answer(0, [-1]), answer(2, [-1])]
+    lines += [answer(20, [21]), answer(22, [21])]
+    tracks, events = arrivals(lines)
+    assert any(kind == "break" and when == at(2) for kind, when in events)
+    assert an.infer(lines)[1].empty
+    if state in ("active", "mixed"):
+        assert any(track["how"] == "gap" for track in tracks)
+    else:
+        assert not any(track["how"] == "gap" for track in tracks)
+
+
+@pytest.mark.parametrize("start", [0, 15 * 60 + 58], ids=["same-day", "across-midnight"])
+def test_repeated_zero_eta_keeps_one_arrival_and_the_next_continuous_headway(start):
+    lines = [answer(start + minute, [start + eta]) for minute, eta in
+             [(0, 1), (2, 1), (4, 1), (6, 9), (8, 9), (10, 9)]]
+    tracks, events = arrivals(lines)
+    assert [track["how"] for track in tracks] == ["zero", "zero"]
+    assert events == [("arrival", at(start + 1)), ("arrival", at(start + 9))]
+    assert an.infer(lines)[1].headway_min.tolist() == [8.0]
+
+
 def test_buses_due_in_the_last_ten_minutes_are_not_scored():
     lines = [answer(0, [3, 13]), answer(2, [3.2, 13]), answer(4, [13.5, 23]), answer(6, [13.6, 23]),
              answer(8, [13.4, 23]), answer(10, [13.4, 23]), answer(12, [13.4, 23]), answer(14, [23, 33])]
