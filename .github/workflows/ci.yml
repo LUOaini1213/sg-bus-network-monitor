@@ -2,14 +2,38 @@ name: tests
 on: [push, pull_request]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt -c constraints.txt
       - run: python -m pytest -q tests
+      - name: README test count
+        run: python tests/check_test_count.py
+      - name: A clean clone stops with exit 2 and names the missing raw inputs
+        run: |
+          set +e
+          python run_all.py --check 2> check.err
+          code=$?
+          set -e
+          cat check.err
+          test "$code" = 2
+          grep -q "datamall/transport_node_bus_202602" check.err
+      - name: No local machine paths in tracked text files
+        run: |
+          if git grep -nIE '[A-Za-z]:[\/]+Users[\/]|/home/[a-z]|/Users/[A-Za-z]' -- . ':!.github/workflows/ci.yml'; then
+            echo "local paths found"; exit 1
+          fi
       - name: Mutation check (every mutant must fail the tests)
+        if: matrix.os == 'ubuntu-latest'
         run: python tests/mutate.py

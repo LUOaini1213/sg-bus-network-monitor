@@ -1,2 +1,11 @@
+# Text files are stored and checked out with LF on every platform.
+* text=auto eol=lf
 # Keep the bytes bound to priority_screen_metadata.json stable across checkouts.
 outputs/priority_screen*.csv text eol=lf
+# Result and reference binaries: never converted.
+*.xlsx -text
+*.png -text
+*.gz -text
+*.npz -text
+*.parquet -text
+*.pdf -text

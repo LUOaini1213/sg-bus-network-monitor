@@ -125,6 +125,84 @@ def test_a_gap_in_the_answers_closes_tracks_without_arrivals():
     assert heads.empty
 
 
+@pytest.mark.parametrize("gap_minutes", [5, 5 + 1 / 60, 18, 24 * 60],
+                         ids=["at-gap-limit", "over-gap-limit", "missing-sweeps", "next-day"])
+def test_gap_after_zero_arrival_breaks_headways_even_with_no_open_tracks(gap_minutes):
+    resumed = 2 + gap_minutes
+    lines = [answer(0, [1]), answer(2, [1]), answer(resumed, [resumed + 1]),
+             answer(resumed + 2, [resumed + 1])]
+    tracks, events = arrivals(lines)
+    _, heads, _ = an.infer(lines)
+    assert [track["how"] for track in tracks] == ["zero", "zero"]
+    assert [when for kind, when in events if kind == "arrival"] == [at(1), at(resumed + 1)]
+    if gap_minutes * 60 > an.MAX_GAP_S:
+        assert [when for kind, when in events if kind == "break"] == [at(2)]
+        assert heads.empty
+    else:
+        assert not any(kind == "break" for kind, _ in events)
+        assert heads.headway_min.tolist() == [resumed]
+
+
+@pytest.mark.parametrize("state", ["empty", "active", "mixed", "already-seen-at-stop"])
+def test_gap_breaks_headways_for_every_retained_track_state(state):
+    if state == "empty":
+        lines = [answer(0, [1]), answer(2, [])]
+    elif state == "active":
+        lines = [answer(0, [1, 11]), answer(2, [11])]
+    elif state == "mixed":
+        lines = [answer(0, [1, 11]), answer(2, [1, 11])]
+    else:
+        # A track first seen with an ETA in the past has no observed arrival interval.
+        lines = [answer(0, [-1]), answer(2, [-1])]
+    lines += [answer(20, [21]), answer(22, [21])]
+    tracks, events = arrivals(lines)
+    assert any(kind == "break" and when == at(2) for kind, when in events)
+    assert an.infer(lines)[1].empty
+    if state in ("active", "mixed"):
+        assert any(track["how"] == "gap" for track in tracks)
+    else:
+        assert not any(track["how"] == "gap" for track in tracks)
+
+
+@pytest.mark.parametrize("start", [0, 15 * 60 + 58], ids=["same-day", "across-midnight"])
+def test_repeated_zero_eta_keeps_one_arrival_and_the_next_continuous_headway(start):
+    lines = [answer(start + minute, [start + eta]) for minute, eta in
+             [(0, 1), (2, 1), (4, 1), (6, 9), (8, 9), (10, 9)]]
+    tracks, events = arrivals(lines)
+    assert [track["how"] for track in tracks] == ["zero", "zero"]
+    assert events == [("arrival", at(start + 1)), ("arrival", at(start + 9))]
+    assert an.infer(lines)[1].headway_min.tolist() == [8.0]
+
+
+def test_no_headway_spans_a_night_between_two_mornings():
+    """Two mornings of the same stop-service: the last arrival of the first and the first of the second must
+    not make a headway, whatever state the tracks were left in."""
+    day = 24 * 60
+    lines = []
+    for d in (0, day):   # each morning ends with a bus whose monitored ETA has crossed zero and is still listed
+        lines += [answer(d + m, [d + m // 10 * 10 + 9]) for m in range(0, 40, 2)] + [
+            answer(d + 40, [d + 39]), answer(d + 42, [d + 39])]
+    _, heads, _ = an.infer(lines)
+    assert heads.headway_min.tolist() == pytest.approx([10.0] * 6)   # 08:09, 08:19, 08:29, 08:39 on each morning
+
+
+def test_run_ends_split_at_gaps_longer_than_the_limit():
+    t = [at(m) for m in (0, 2, 7, 12.5, 14, 24 * 60, 24 * 60 + 2)]
+    assert an.run_ends(t) == [at(7), at(14), at(24 * 60 + 2)]   # 7 -> 12.5 is 5.5 min; 2 -> 7 is exactly 5
+    assert an.run_ends([]) == []
+
+
+def test_end_margin_applies_to_the_end_of_each_morning_not_only_the_last_one():
+    lines = [answer(0, [3, 13]), answer(2, [3.2, 13]), answer(4, [13.5, 23]), answer(6, [13.6, 23]),
+             answer(8, [13.4, 23]), answer(10, [13.4, 23]), answer(12, [13.4, 23]), answer(14, [23, 33])]
+    day = 24 * 60
+    lines += [answer(day + m, [day + 40]) for m in range(0, 30, 2)]   # the next morning, much longer
+    preds, _, _ = an.infer(lines)
+    # The 08:13 bus arrived 2 minutes before the first morning's last answer: a bus 10 minutes late would not
+    # have been seen that morning, so it is not scored even though the next morning runs on.
+    assert sorted(preds.eta.unique()) == [at(3), at(3.2)]
+
+
 def test_buses_due_in_the_last_ten_minutes_are_not_scored():
     lines = [answer(0, [3, 13]), answer(2, [3.2, 13]), answer(4, [13.5, 23]), answer(6, [13.6, 23]),
              answer(8, [13.4, 23]), answer(10, [13.4, 23]), answer(12, [13.4, 23]), answer(14, [23, 33])]
@@ -195,3 +273,43 @@ def test_quality_report_and_full_run(tmp_path):
     assert set(acc.rule) == {"all", "gone"}
     overall = acc[(acc.corridor == "all") & (acc.monitored.astype(str) == "all") & (acc.rule == "all")]
     assert overall.n.sum() == acc[acc.corridor != "all"].n.sum() == 2
+
+
+def test_full_run_raises_no_pandas_deprecation_or_future_warning(tmp_path):
+    """pandas 3 warns (and a later version will raise) on a text fill value in the numeric monitored column."""
+    import warnings
+    lines = [answer(m, [3, 13]) for m in (0, 2)] + [answer(m, [13.5, 23]) for m in (4, 6, 8, 10, 12)]
+    lines += [answer(m, [23, 33]) for m in range(14, 31, 2)]
+    lines[3]["services"][0]["NextBus"]["Monitored"] = 0
+    ba.write_sweep(lines, dt.datetime(2026, 10, 16, 8, 0), tmp_path / "2026-10-16")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        warnings.simplefilter("error", DeprecationWarning)
+        an.run(tmp_path, out=tmp_path / "out")
+    acc = pd.read_csv(tmp_path / "out" / "busarrival_eta_accuracy.csv", dtype=str)
+    assert {"all", "0.0", "1.0"} <= set(acc.monitored)
+
+
+def test_read_sweeps_takes_a_date_range_of_day_folders(tmp_path):
+    for day in ("2026-10-15", "2026-10-16", "2026-10-19"):
+        t0 = dt.datetime.fromisoformat(day + "T08:00:00")
+        ba.write_sweep([dict(answer(0, [3]), t=t0.replace(tzinfo=SGT).isoformat())], t0, tmp_path / day)
+    days = lambda **kw: sorted({x["t"][:10] for x in an.read_sweeps(tmp_path, **kw)})  # noqa: E731
+    assert days() == ["2026-10-15", "2026-10-16", "2026-10-19"]
+    assert days(first="2026-10-16") == ["2026-10-16", "2026-10-19"]
+    assert days(first="2026-10-16", last="2026-10-16") == ["2026-10-16"]
+    assert days(days=["2026-10-19"]) == ["2026-10-19"]
+
+
+def test_max_answer_gap_spans_from_the_answer_before_the_first_arrival_to_the_one_after_the_last():
+    t = [at(0), at(6), at(8)]
+    assert an.max_answer_gap(t, at(3), at(7)) == 360   # the 0 -> 6 minute stretch the first arrival sits in
+    assert an.max_answer_gap([at(0), at(2), at(9)], at(1), at(5)) == 420   # 2 -> 9, after the last arrival
+    assert an.max_answer_gap([at(0), at(2), at(4)], at(1), at(3)) == 120
+    assert an.max_answer_gap([at(0)], at(0), at(0)) == 0.0
+
+
+def test_headways_record_the_longest_answer_gap_they_span():
+    lines = [answer(m, [m // 10 * 10 + 9]) for m in range(0, 40, 2)]
+    _, heads, _ = an.infer(lines)
+    assert len(heads) and heads.max_answer_gap_s.max() == pytest.approx(120)

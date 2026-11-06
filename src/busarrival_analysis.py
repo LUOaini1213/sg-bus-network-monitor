@@ -32,9 +32,10 @@ no vehicle id. The inference rule:
 3. Predictions. Every answer for that bus up to t_prev is one prediction: horizon = ETA - answer time,
    error = observed arrival - ETA (positive: the bus came later than predicted). Horizons are binned 0-2, 2-5,
    5-10 and 10-20 minutes; negative horizons (a stale ETA in the past) are counted in the quality report.
-   A prediction counts only if its ETA is at least END_MARGIN_S (10 minutes) before the last answer for that
-   stop: near the end of the observation, buses that come early are seen arriving and buses that come late are
-   not, which would bias the long horizons towards "early".
+   A prediction counts only if its ETA is at least END_MARGIN_S (10 minutes) before the end of the unbroken run
+   of answers that saw the arrival (the end of that morning, or the start of a gap of more than MAX_GAP_S): near
+   the end of an observed run, buses that come early are seen arriving and buses that come late are not, which
+   would bias the long horizons towards "early".
 
 Headways are differences between consecutive observed arrivals of a service at a stop, within an unbroken
 sequence. Regularity is the coefficient of variation (sample standard deviation / mean) per service and stop,
@@ -44,6 +45,7 @@ scheduled headway band midpoint for the period (DataMall BusServices: AM peak 06
 headway of that service at that stop.
 """
 import argparse
+import bisect
 import datetime as dt
 import gzip
 import json
@@ -71,12 +73,13 @@ SLOTS = ("NextBus", "NextBus2", "NextBus3")
 
 # ---------------------------------------------------------------- loading
 
-def read_sweeps(root, days=None):
-    """Every stop answer in the sweep files under root/YYYY-MM-DD/, in time order."""
+def read_sweeps(root, days=None, first=None, last=None):
+    """Every stop answer in the sweep files under root/YYYY-MM-DD/, in time order: the folders named in days (all
+    when None), from first to last inclusive (ISO dates) when given."""
     root = Path(root)
     lines = []
     for d in sorted(p for p in root.iterdir() if p.is_dir()):
-        if days and d.name not in days:
+        if (days and d.name not in days) or (first and d.name < first) or (last and d.name > last):
             continue
         for f in sorted(d.glob("ba_*.jsonl.gz")):
             with gzip.open(f, "rt", encoding="utf-8") as z:
@@ -164,11 +167,13 @@ def track(answers):
 
     for t, new in answers:
         if t_prev is not None and (t - t_prev).total_seconds() > MAX_GAP_S:
+            # Arrived tracks stay listed to prevent counting a repeated zero ETA twice.
+            # A missing interval still breaks headways when none need closing below.
+            if not any(trk["how"] == "active" for trk in active):
+                events.append(("break", t_prev))
             for trk in active:
                 if trk["how"] == "active":
                     close(trk, "gap", lo=t_prev)
-            if not active:
-                events.append(("break", t_prev))
             active = []
         old = [trk for trk in active]
         if t_prev is None or not old:
@@ -207,16 +212,35 @@ def track(answers):
     return tracks, events
 
 
+def run_ends(times):
+    """The last answer time of every unbroken run of answers (consecutive answers at most MAX_GAP_S apart),
+    in time order. Several mornings, or a morning with a gap, give several runs."""
+    ends = [a for a, b in zip(times, times[1:]) if (b - a).total_seconds() > MAX_GAP_S]
+    return ends + times[-1:]
+
+
+def max_answer_gap(times, first, last):
+    """The longest interval, in seconds, between consecutive answers from the answer before first to the answer
+    after last. A headway is only as good as the answers it rests on: one that spans more than MAX_GAP_S of
+    missing answers joins arrivals the sweeps did not watch continuously."""
+    i = max(bisect.bisect_left(times, first) - 1, 0)
+    j = min(bisect.bisect_right(times, last), len(times) - 1)
+    return max(((b - a).total_seconds() for a, b in zip(times[i:j], times[i + 1:j + 1])), default=0.0)
+
+
 def infer(lines):
     """(predictions, headways, tracks) DataFrames from the raw answers."""
     preds, heads, trks = [], [], []
     for (stop, svc), answers in answers_by_group(lines).items():
         tracks, events = track(answers)
-        horizon_end = answers[-1][0] - dt.timedelta(seconds=END_MARGIN_S)
+        ends = run_ends([t for t, _ in answers])
         for k, trk in enumerate(tracks):
             trks.append({"stop": stop, "service": svc, "how": trk["how"], "n_preds": len(trk["preds"])})
             if trk["how"] not in ("zero", "gone"):
                 continue
+            # The end of the unbroken run of answers that saw this arrival (the end of the morning, or the start of
+            # a gap): a prediction counts only if a bus END_MARGIN_S late would still have been seen in that run.
+            horizon_end = ends[bisect.bisect_left(ends, trk["hi"])] - dt.timedelta(seconds=END_MARGIN_S)
             mid = trk["lo"] + (trk["hi"] - trk["lo"]) / 2
             half = (trk["hi"] - trk["lo"]).total_seconds() / 2
             for t, eta, mon in trk["preds"]:
@@ -225,6 +249,7 @@ def infer(lines):
                 preds.append({"stop": stop, "service": svc, "track": k, "t": t, "eta": eta, "monitored": mon,
                               "horizon_min": (eta - t).total_seconds() / 60,
                               "error_s": (mid - eta).total_seconds(), "resolution_s": half, "how": trk["how"]})
+        times = [t for t, _ in answers]
         last = None
         for kind, when in sorted(events, key=lambda e: e[1]):
             if kind == "break":
@@ -232,11 +257,12 @@ def infer(lines):
             else:
                 if last is not None:
                     heads.append({"stop": stop, "service": svc, "arrival": when,
-                                  "headway_min": (when - last).total_seconds() / 60})
+                                  "headway_min": (when - last).total_seconds() / 60,
+                                  "max_answer_gap_s": max_answer_gap(times, last, when)})
                 last = when
     cols = ["stop", "service", "track", "t", "eta", "monitored", "horizon_min", "error_s", "resolution_s", "how"]
     return (pd.DataFrame(preds, columns=cols),
-            pd.DataFrame(heads, columns=["stop", "service", "arrival", "headway_min"]),
+            pd.DataFrame(heads, columns=["stop", "service", "arrival", "headway_min", "max_answer_gap_s"]),
             pd.DataFrame(trks, columns=["stop", "service", "how", "n_preds"]))
 
 
@@ -337,8 +363,8 @@ def quality(lines, tracks, preds):
     return q
 
 
-def run(data, days=None, out=OUT):
-    lines = read_sweeps(data, days)
+def run(data, days=None, out=OUT, first=None, last=None):
+    lines = read_sweeps(data, days, first, last)
     preds, heads, trks = infer(lines)
     acc = eta_accuracy(preds)
     acc_m = eta_accuracy(preds, by=("monitored",))
@@ -349,6 +375,11 @@ def run(data, days=None, out=OUT):
     bun = bunching(heads, scheduled_headways())
     q = quality(lines, trks, preds)
     times = sorted(_ts(x["t"]) for x in lines if x.get("t"))
+    by_day = {}
+    for t in times:
+        by_day.setdefault(t.date().isoformat(), []).append(t)
+    stop_cv = reg.assign(corridor=reg.stop.map(stops))
+    periods = bun.assign(period=[period_of(a.astimezone(SGT)) for a in bun.arrival]) if len(bun) else None
     summary = {
         "first_answer": times[0].isoformat() if times else None, "last_answer": times[-1].isoformat() if times else None,
         "days": sorted({t.date().isoformat() for t in times}),
@@ -362,13 +393,21 @@ def run(data, days=None, out=OUT):
         if (bun.reference == "scheduled").any() else None,
         "bunched_share_median_ref": float((bun.headway_min < BUNCH_FRACTION * bun.groupby(["stop", "service"])
                                            .headway_min.transform("median")).mean()) if len(bun) else None,
+        "mornings": [{"date": d, "answers": len(ts), "first_answer": ts[0].isoformat(), "last_answer": ts[-1].isoformat()}
+                     for d, ts in sorted(by_day.items())],
+        "median_cv_by_corridor": {k: float(v) for k, v in stop_cv.groupby("corridor").cv.median().items()},
+        "bunched_by_period": {k: {"headways": int(len(g)), "bunched_share": float(g.bunched.mean())}
+                              for k, g in periods.groupby("period")} if periods is not None else {},
+        "max_headway_min": float(heads.headway_min.max()) if len(heads) else None,
+        "max_answer_gap_in_headway_s": float(heads.max_answer_gap_s.max()) if len(heads) else None,
     }
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     tables = [acc, acc_m, acc_c, acc_r]
+    # monitored is numeric (0/1, NaN in the other tables); pandas 3 refuses a text fill value in a float column.
     pd.concat([t.reindex(columns=["monitored", "corridor", "rule", *acc.columns]) for t in tables],
-              ignore_index=True).fillna({"monitored": "all", "corridor": "all", "rule": "all"}).to_csv(
-        out / "busarrival_eta_accuracy.csv", index=False)
+              ignore_index=True).astype({"monitored": object}).fillna(
+        {"monitored": "all", "corridor": "all", "rule": "all"}).to_csv(out / "busarrival_eta_accuracy.csv", index=False)
     reg.assign(corridor=reg.stop.map(stops)).to_csv(out / "busarrival_headways.csv", index=False)
     if len(bun):
         b = bun.assign(corridor=bun.stop.map(stops)).groupby("corridor").agg(
@@ -386,9 +425,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data", required=True, help="the data/raw/busarrival folder of a data-collect checkout")
     ap.add_argument("--days", nargs="*", help="YYYY-MM-DD folders to use (default: all)")
+    ap.add_argument("--from", dest="first", help="first YYYY-MM-DD folder to use")
+    ap.add_argument("--to", dest="last", help="last YYYY-MM-DD folder to use")
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
-    s, q = run(a.data, a.days, a.out)
+    s, q = run(a.data, a.days, a.out, a.first, a.last)
     print(json.dumps({"summary": {k: v for k, v in s.items() if not k.startswith("eta")}, "quality": q}, indent=1,
                      default=str))
     print(pd.DataFrame(s["eta"]).to_string(index=False))

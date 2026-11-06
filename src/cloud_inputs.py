@@ -11,7 +11,9 @@ raw DataMall route files.
 - data/raw/datamall/speedbands points at data-collect's day folders (speed_cache reads them recursively).
 """
 import gzip
+import os
 import shutil
+import stat
 import sys
 from pathlib import Path
 
@@ -21,6 +23,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw" / "datamall"
 DB = ROOT / "data" / "processed" / "sgbus.duckdb"
+WINDOWS = os.name == "nt"
 LINK_COLS = ["from_stop", "to_stop", "services", "AM_Peak_bph", "link_km", "from_Latitude", "from_Longitude",
              "to_Latitude", "to_Longitude"]
 
@@ -33,6 +36,31 @@ def corridor_tables(path=ROOT / "outputs" / "corridor_links.csv"):
     return cl[LINK_COLS], stops
 
 
+def is_link(path):
+    """A symbolic link, or a Windows directory junction (what link_dir falls back to)."""
+    path = Path(path)
+    if path.is_symlink():
+        return True
+    try:
+        tag = getattr(os.lstat(path), "st_reparse_tag", 0)
+    except OSError:
+        return False
+    return bool(tag) and tag == getattr(stat, "IO_REPARSE_TAG_MOUNT_POINT", None)
+
+
+def link_dir(link, target):
+    """Point link at the directory target. Windows without the symlink privilege (no Developer Mode, not an
+    administrator) refuses symbolic links with WinError 1314, so there a directory junction is made instead; it
+    needs no privilege and speed_cache reads through it the same way."""
+    try:
+        Path(link).symlink_to(target, target_is_directory=True)
+    except OSError:
+        if not WINDOWS:
+            raise
+        import _winapi
+        _winapi.CreateJunction(str(Path(target).resolve()), str(link))
+
+
 def main(data_collect):
     dc = Path(data_collect).resolve() / "data" / "raw" / "speedbands"
     if not (dc / "links" / "speedband_links.csv.gz").exists():
@@ -41,11 +69,11 @@ def main(data_collect):
     with gzip.open(dc / "links" / "speedband_links.csv.gz", "rb") as src, open(RAW / "speedband_links.csv", "wb") as dst:
         shutil.copyfileobj(src, dst)
     link = RAW / "speedbands"
-    if link.is_symlink() or link.is_file():
+    if is_link(link) or link.is_file():
         link.unlink()
     elif link.exists():
         raise SystemExit(f"{link} is a real directory (the laptop archive?); move it before linking data-collect")
-    link.symlink_to(dc, target_is_directory=True)
+    link_dir(link, dc)
     cl, stops = corridor_tables()
     DB.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(DB))

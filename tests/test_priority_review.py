@@ -96,7 +96,7 @@ def test_priority_screen_rejects_invalid_speeds_and_keeps_finite_rankings():
     for column in ("v_peak", "v_ref"):
         for invalid in (np.nan, 0.0, np.inf, -np.inf, -5.0):
             rows.append({"from_stop": "invalid", "v_peak": 10.0, "v_ref": 25.0, column: invalid})
-    links = pd.DataFrame(rows).assign(match_ratio=0.5, AM_Peak_bph=60.0, link_km=1.0)
+    links = pd.DataFrame(rows).assign(to_stop="x", match_ratio=0.5, AM_Peak_bph=60.0, link_km=1.0)
     below_coverage = links.iloc[[0]].assign(from_stop="unmatched", match_ratio=0.49)
     links = pd.concat([links, below_coverage], ignore_index=True)
     ranked = priority.screen_priority(links)
@@ -104,6 +104,18 @@ def test_priority_screen_rejects_invalid_speeds_and_keeps_finite_rankings():
     assert ranked.bus_h_lost_per_h.tolist() == pytest.approx([3.6, 1.5, 0.0])
     assert np.isfinite(ranked.bus_h_lost_per_h).all()
     assert "bus_h_lost_per_h" not in links  # screening does not overwrite the diagnostic input
+
+
+def test_tied_losses_are_ordered_by_stop_codes_whatever_the_input_order():
+    """Links with equal loss (most often zero: no slower than at night) used to come out in the order the
+    database returned them, so the CSV hash changed between machines."""
+    links = pd.DataFrame({"from_stop": ["30", "10", "20", "10", "05"], "to_stop": ["31", "12", "21", "11", "06"],
+                          "v_peak": [30.0, 30.0, 30.0, 30.0, 10.0], "v_ref": [20.0, 20.0, 20.0, 20.0, 25.0]})
+    links = links.assign(match_ratio=0.5, AM_Peak_bph=60.0, link_km=1.0)
+    want = [("05", "06"), ("10", "11"), ("10", "12"), ("20", "21"), ("30", "31")]
+    for order in ([0, 1, 2, 3, 4], [4, 3, 2, 1, 0], [2, 0, 4, 1, 3]):
+        ranked = priority.screen_priority(links.iloc[order])
+        assert list(zip(ranked.from_stop, ranked.to_stop)) == want
 
 
 @pytest.mark.parametrize("period", ["peak", "night"])

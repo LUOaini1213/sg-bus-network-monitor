@@ -113,6 +113,9 @@ def test_combined_peak_is_median_of_daily_medians_not_pooled_snapshots():
     assert ranked.bus_h_lost_per_h.iloc[0] == pytest.approx(60 * 1.0 * (1 / 20 - 1 / 40))
     assert sorted(by_day.morning) == [str(D1), str(D2)]
     assert [x["n_snapshots"] for x in meta["mornings"]] == [4, 8]
+    # Night snapshots 23:00-23:30 (4); AM 07:30-07:45 on D1 and 07:30-08:05 on D2: counted per hour of the day.
+    assert meta["night"]["by_hour"] == {"23": 4}
+    assert meta["peak"]["by_hour"] == {"07": 10, "08": 2}
 
 
 def test_median_not_mean_across_mornings():

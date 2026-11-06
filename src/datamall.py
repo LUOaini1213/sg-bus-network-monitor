@@ -46,19 +46,45 @@ def speed_bands_snapshot():
             w.writerow([r["LinkID"], r["SpeedBand"], r["MinimumSpeed"], r["MaximumSpeed"]])
     return len(rows)
 
+# The months the committed analyses use: demand.py compares August 2026 with February, June and July (stop volumes);
+# od.py compares July and August (origin-destination volumes).
+PV_MONTHS = ["202602", "202606", "202607", "202608"]
+OD_MONTHS = ["202607", "202608"]
+KINDS = ("static", "pv", "od", "speed")
+
+
+def parse_args(argv):
+    """`static pv od speed` in any combination, then optional YYYYMM months for pv and od (default: the months
+    the analyses use). Returns (kinds, months or None)."""
+    kinds = [a for a in argv if a in KINDS]
+    months = [a for a in argv if a not in KINDS]
+    bad = [m for m in months if not (len(m) == 6 and m.isdigit())]
+    if bad:
+        raise SystemExit(f"unknown arguments {bad}: expected {' '.join(KINDS)} and YYYYMM months")
+    return kinds or ["static", "pv", "speed"], months or None
+
+
 if __name__ == "__main__":
     import sys
-    what = sys.argv[1:] or ["static", "pv", "speed"]
+    what, months = parse_args(sys.argv[1:])
+    missing = []
     if "static" in what:
+        # Saved under the pull date. anomalies.py compares the newest BusRoutes_*.json with the April 2026 pull
+        # (or the file given with --routes); the committed outputs used the pull of 2026-09-26.
         for ep in ["BusStops", "BusServices", "BusRoutes"]:
             rows = paged(ep)
             (RAW / f"{ep}_{dt.date.today():%Y%m%d}.json").write_text(json.dumps(rows), encoding="utf-8")
             print(ep, len(rows))
-    if "pv" in what:
-        for m in ["202609", "202608", "202607", "202606", "202605"]:
-            print("PV/Bus", m, pv_zip("Bus", m))
-    if "od" in what:
-        for m in sys.argv[2:] or ["202608"]:
-            print("PV/ODBus", m, pv_zip("ODBus", m))
+    for kind, api, default in (("pv", "Bus", PV_MONTHS), ("od", "ODBus", OD_MONTHS)):
+        if kind in what:
+            for m in months or default:
+                path = pv_zip(api, m)
+                print(f"PV/{api}", m, path or "not served")
+                if path is None:
+                    missing.append(f"PV/{api} {m}")
     if "speed" in what:
         print("speed bands", speed_bands_snapshot())
+    if missing:
+        # DataMall serves passenger volumes for recent months only. An older month has to come from an archive.
+        raise SystemExit("DataMall did not return: " + ", ".join(missing) + ". DataMall serves passenger volumes "
+                         "for recent months only; see 'What can be rebuilt' in the README.")

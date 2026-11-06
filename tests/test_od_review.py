@@ -106,3 +106,21 @@ def test_anomaly_evidence_receives_median_only_stops_without_duplicate_destinati
     # The anomaly report still uses its own multi-month flag; the OD metadata
     # does not overwrite it with the July-only selection for the same stop.
     assert result.loc["00003", "flag"] == "surge"
+
+
+def test_the_september_routes_file_is_the_newest_pull_or_the_one_given(tmp_path, monkeypatch):
+    monkeypatch.setattr(anomalies, "RAW", tmp_path)
+    with pytest.raises(SystemExit, match="datamall.py static"):
+        anomalies.september_routes()
+    for name in ("BusRoutes_20260926.json", "BusRoutes_20261103.json"):
+        (tmp_path / name).write_text("[]", encoding="utf-8")
+    assert anomalies.september_routes().name == "BusRoutes_20261103.json"   # a pull after September still works
+    assert anomalies.september_routes(tmp_path / "BusRoutes_20260926.json").name == "BusRoutes_20260926.json"
+
+
+def test_demand_stops_with_a_clear_message_when_a_comparison_month_is_missing():
+    import demand
+    v = pd.DataFrame({"YEAR_MONTH": ["2026-06", "2026-07", "2026-08"]})
+    with pytest.raises(SystemExit, match=r"\['2026-02'\]"):
+        demand.require_months(v)
+    demand.require_months(pd.DataFrame({"YEAR_MONTH": demand.MONTHS}))

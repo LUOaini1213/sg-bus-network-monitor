@@ -140,7 +140,7 @@ def split(grid, idx, test_from=TEST_FROM, val_days=VAL_DAYS):
 def time_features(grid_times):
     t = pd.DatetimeIndex(grid_times)
     frac = (t.hour * 60 + t.minute) / 1440.0
-    return np.c_[np.sin(2 * np.pi * frac), np.cos(2 * np.pi * frac), (t.weekday < 5).astype(float)]
+    return np.c_[np.sin(2 * np.pi * frac), np.cos(2 * np.pi * frac), (t.day_of_week < 5).astype(float)]
 
 
 # ---------------------------------------------------------------- baselines
@@ -153,7 +153,7 @@ def ha_table(X, grid, train_idx, slots_per_day):
     the link's overall training mean."""
     t = pd.DatetimeIndex(grid)
     tod = ((t.hour * 60 + t.minute) // (1440 // slots_per_day)).to_numpy()
-    wk = (t.weekday < 5).astype(int)
+    wk = (t.day_of_week < 5).astype(int)
     rows = np.unique(np.r_[train_idx, *[train_idx - k for k in range(1, LAGS)]])  # every slot seen in training
     rows = rows[(rows >= 0) & np.isfinite(X[rows]).any(axis=1)]
     n = X.shape[1]
