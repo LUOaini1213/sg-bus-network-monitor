@@ -1,6 +1,15 @@
 # Singapore Bus Network Monitor
 
-An open-data pipeline and dashboard for Singapore's public bus network. It covers:
+An open-data pipeline and static dashboard for Singapore's public bus network (LTA DataMall, URA, SingStat, OpenStreetMap), with GitHub Actions collectors that archive speed bands and Bus Arrival answers every weekday morning.
+
+- **Demand:** raw totals show weekday boardings falling 11.6% from July to August 2026; per weekday they rose 1.6%.
+- **Access:** 79.7–98.5% of residents live within 400 m of a stop, from the walking network (lower bound) to straight lines (upper bound).
+- **Bus priority:** over 14 weekday mornings the ranking of 3,378 links is broadly stable (median Kendall's tau 0.80), but two mornings' top 20s share only half their links (median overlap 0.50).
+- **Forecasts:** a graph neural net's 0.30 km/h gain over persistence on one test morning did not hold on later mornings; LightGBM did best when each morning was held out in turn (mornings to 23 October).
+- **Bus Arrival:** over 15 weekday mornings, ETA error grows from 42 s (MAE, 0–2 min ahead) to 104 s (10–20 min), buses come later than predicted at long horizons, and 7.3% of headways are bunched.
+- **Limits:** arrivals are inferred from predictions (±1 min); speed bands describe general traffic, not buses; the demand, OD and anomaly results need DataMall files it no longer serves, and the network steps rebuild only against today's network ([What can be rebuilt](#what-can-be-rebuilt)).
+
+It covers:
 
 - where services share the road;
 - when people board and where their trips go;
@@ -14,6 +23,8 @@ An open-data pipeline and dashboard for Singapore's public bus network. It cover
 
 **Dashboard:** https://luoaini1213.github.io/sg-bus-network-monitor/
 
+![Top of the dashboard: headline figures and the map of shared corridors](docs/screenshots/dashboard_top.png)
+
 Data:
 
 - LTA DataMall: the September 2026 network; stop and origin-destination passenger volumes for February, June, July and August 2026; traffic speed bands; Bus Arrival (v3) at 41 corridor stops.
@@ -24,7 +35,7 @@ Data:
 - Traffic Police, SingStat and Ministry of Transport road-safety statistics; LTA DataMall Traffic Incidents.
 - PTC fare tables and fare reviews; LTA audited Bus Contracting accounts and contract awards.
 
-Everything is rebuilt from raw files by one command, and every table has recorded quality checks.
+Every table has recorded quality checks. Not every result can be rebuilt from today's downloads: [What can be rebuilt](#what-can-be-rebuilt) says which ones a clean clone reproduces and which need archived raw files.
 
 ## Findings
 
@@ -98,20 +109,22 @@ The screen runs morning by morning (`src/priority_days.py`):
 
 With one morning the code reproduces the earlier single-morning CSV exactly: same 3,378 links, same order, values equal to within 1e-13.
 
-**Six weekday mornings, 16–23 October 2026 (rerun on 23 October).** These are the GitHub Actions snapshots on the `data-collect` branch. 16 October has 4 snapshots in 07:30–09:30, all from 08:37, because GitHub started that morning's runs late; 19 October has 6, and 20 to 23 October have 9 each. The laptop archive (28 September, 14 October and its 89 night snapshots) is not on that branch, so it is not in this run. The inputs were rebuilt without the raw route files (`src/cloud_inputs.py`). The speed-band match reproduces the earlier one exactly: the same 3,378 eligible links, with matched lengths equal to within 3e-11 m.
+**Fourteen weekday mornings, 16 October to 5 November 2026 (rerun on 6 November).** These are the GitHub Actions snapshots on the `data-collect` branch, at commit `1aad772`. A morning counts when it has at least four snapshots between 07:30 and 09:30: 16 October and 5 November have 4, 4 November 5, 19 October 6, and the other 10 mornings 7 to 9. 6 November (3 snapshots) is left out, and 3 November has no morning snapshot. The laptop archive (28 September, 14 October and its 89 night snapshots) is not on that branch, so it is not in this run. The inputs were rebuilt without the raw route files (`src/cloud_inputs.py`), and the speed-band match is the same as in the earlier runs: 3,378 eligible links.
 
-- **Night reference.** 16 snapshots, all between 01:56 and 05:00: GitHub started the night jobs 2 to 5 hours late, so none fell between 22:00 and 01:00. Link by link they correlate with the archived 89-snapshot reference at r = 0.95, but they are faster, by a median of 2.4 km/h; 80% of links are within 5 km/h. Losses against this reference are higher. With the archived night speeds instead, the combined network total is 97.4 bus-hours lost per hour rather than 143.7, and the ranking moves only moderately (Kendall's tau 0.76; 15 of the top 20 unchanged).
-- **Eligible links.** 3,378; 2,890 have a positive estimated loss on the combined screen.
-- **Agreement between mornings.** Over the 15 pairs of mornings, Kendall's tau is 0.72–0.83 (median **0.80**) and the top-20 overlap is 0.30–0.80 (median **0.55**). The thin 16 October morning agrees least (tau 0.72–0.74 with each other morning); among the five full mornings tau is 0.80–0.83. The broad ordering holds; one morning's top 20 still shares only about half its links with another's. The first screen, on the two laptop mornings, had tau 0.72 and an overlap of 0.40.
-- **Combined top 20.** 12 of the 20 are in the daily top 20 on at least five of the six mornings, and three are on all six: Jalan Eunos (Opp Blk 322 to Opp Blk 16), Yishun Avenue 2 before Khatib Station, and Loyang Avenue (Opp Blk 149A to Blk 370). Next come Bartley Road at Bartley Station, Queensway, Raffles Quay and Orchard Road at Dhoby Ghaut. 12 of the 20 were in the two-morning top 20, including five of its first seven (Jalan Eunos, Loyang Avenue, Robinson Road, Yishun Avenue 2 and Shenton Way).
-- **Network total.** Estimated bus-hours lost per hour, summed over eligible links: 141.8 on 16 October, 152.8 on the 19th, 152.4 on the 20th, 148.2 on the 21st, 148.5 on the 22nd and 137.7 on the 23rd. These are not comparable with the 107.2 and 94.9 of the two laptop mornings, because the night reference differs.
-- **Still to come.** A night reference that covers 22:00–01:00 needs night jobs that start on time. Adding the laptop archive to `data-collect` would put all eight mornings in one run. `python src/priority.py` re-ranks as the collector adds mornings, and `outputs/priority_stability.json` records the agreement for every pair of mornings.
+- **Night reference.** 58 snapshots, all between 00:32 and 05:00; only one is before 01:00 (`by_hour` in `outputs/priority_screen_metadata.json`). GitHub starts the night jobs hours late, so none falls between 22:00 and midnight. In the six-morning run of 23 October, the 16 night snapshots then available (01:56–05:00) were faster than the archived 89-snapshot laptop reference by a median 2.4 km/h, and losses against them were higher: with the archived reference the combined network total was 97.4 bus-hours lost per hour instead of 143.7, with a moderately different ranking (Kendall's tau 0.76; 15 of the top 20 unchanged).
+- **Eligible links.** 3,378; 2,914 have a positive estimated loss on the combined screen, which totals 142.7 bus-hours lost per hour.
+- **Agreement between mornings.** Over the 91 pairs of mornings, Kendall's tau is 0.69–0.83 (median **0.80**) and the top-20 overlap is 0.20–0.80 (median **0.50**). The thin mornings agree least: 16 October (tau 0.69–0.73 with each other morning), and 4 and 5 November (median 0.76 each, against 0.79–0.81 for the other mornings). The broad ordering holds; one morning's top 20 still shares only about half its links with another's. The first screen, on the two laptop mornings, had tau 0.72 and an overlap of 0.40.
+- **Combined top 20.** 13 of the 20 are in the daily top 20 on at least 7 of the 14 mornings, and 8 on at least 10. One is on all 14: Jalan Eunos (Opp Blk 322 to Opp Blk 16). Bendemeer Road (Blk 44 to Opp Boon Keng Stn) and Shenton Way (UIC Bldg to Prince Edward Rd Stn Exit 2) are on 13. 16 of the 20 were in the six-morning top 20 of 23 October.
+- **Network total.** Estimated bus-hours lost per hour, summed over eligible links, runs from 135.3 (23 October) to 175.6 (4 November) across the 14 mornings; `outputs/priority_by_morning.csv` has every morning. These are not comparable with the 107.2 and 94.9 of the two laptop mornings, because the night reference differs.
+- **Not covered yet.** A night reference that covers 22:00–midnight needs night jobs that start on time, and the laptop archive is still not on `data-collect`. `python src/priority.py` re-ranks on whatever mornings `data-collect` holds, and `outputs/priority_stability.json` records the agreement for every pair of mornings.
 
 The dates and snapshot counts are stored with a hash of the displayed CSV in `outputs/priority_screen_metadata.json`. The dashboard shows a top-40 map and a top-10 table.
 
 ### Short-term speed forecasts
 
 `src/forecast.py` predicts speed bands 20, 40 and 60 minutes ahead from the last hour of snapshots.
+
+**As of 23 October 2026.** The runs below use the mornings collected by then (the last of them six mornings, 16–23 October). `data-collect` now holds 14 qualifying mornings; the forecasts have not been rerun on them yet, so the tables below are not the latest data.
 
 - **Network.** 3,847 speed-band segments: the 2,598 expressway segments, plus the segments under bus links with 60 or more scheduled AM-peak buses an hour. 4,116 directed edges join each segment to the segments that start where it ends.
 - **Models.**
@@ -144,12 +157,12 @@ The dates and snapshot counts are stored with a hash of the displayed CSV in `ou
 
 | Model | 20 min MAE | 40 min MAE | 60 min MAE | 20 min RMSE |
 |---|---|---|---|---|
-| Persistence | 3.70 (3.49–4.10) | 4.47 (4.21–5.04) | 4.88 (4.66–5.42) | 7.64 |
-| Historical average | 4.61 (4.40–4.85) | 4.90 (4.64–5.15) | 5.21 (5.04–5.32) | 8.66 |
+| Persistence | 3.69 (3.49–4.10) | 4.47 (4.21–5.04) | 4.88 (4.66–5.42) | 7.64 |
+| Historical average | 4.61 (4.40–4.85) | 4.90 (4.64–5.15) | 5.21 (5.04–5.32) | 8.65 |
 | LightGBM | 3.67 (3.58–3.91) | **4.20** (4.09–4.49) | **4.18** (3.96–4.52) | **6.81** |
 | Graph neural net, mean of 5 seeds | **3.64** (3.44–4.05) | 4.21 (3.93–4.77) | 4.41 (4.10–4.91) | 7.14 |
 
-- **20 minutes: the graph net's gain over persistence does not hold.** Its MAE is 3.64 against 3.70, a gain of 0.05 km/h (paired interval 0.04–0.06, [0.01–0.09]); on 14 October it was 0.30 km/h. Single seeds range from 3.65 to 3.70 (s.d. 0.02), and two of the five are no better than persistence. LightGBM is level with persistence (3.67; paired interval −0.19 to +0.10).
+- **20 minutes: the graph net's gain over persistence does not hold.** Its MAE is 3.64 against 3.69, a gain of 0.05 km/h (paired interval 0.04–0.06, [0.01–0.09]); on 14 October it was 0.30 km/h. Single seeds range from 3.65 to 3.70 (s.d. 0.02), and two of the five are no better than persistence. LightGBM is level with persistence (3.67; paired interval −0.19 to +0.10).
 - **40 and 60 minutes.** Both learned models beat persistence. At 60 minutes LightGBM is best, 0.70 km/h below persistence (paired interval [0.37–1.03]); the graph net is 0.47 below. The historical average, built from two training mornings, is the worst model at every horizon.
 - **AM peak.** All 8 test anchors are in the AM peak, where the 14 October run had three and found no gain. The table above is the AM-peak result.
 - **How far this goes.** The models were trained on 4 anchors from two mornings, against 82 anchors in the first run, so this is not a like-for-like repeat: the graph net may need the full days the laptop archive had. What it does show is that the 14 October gain did not carry over to the next mornings measured.
@@ -158,7 +171,7 @@ The dates and snapshot counts are stored with a hash of the displayed CSV in `ou
 
 | Model | 20 min MAE | 40 min MAE | 60 min MAE | 20 min RMSE |
 |---|---|---|---|---|
-| Persistence | 3.87 (3.66–4.16) | 4.76 (4.41–5.17) | 5.24 (4.80–5.70) | 7.93 |
+| Persistence | 3.87 (3.66–4.16) | 4.76 (4.41–5.17) | 5.24 (4.80–5.70) | 7.92 |
 | Historical average | 4.52 (4.28–4.57) | 4.70 (4.46–4.76) | 4.90 (4.66–4.95) | 8.22 |
 | LightGBM | **3.58** (3.50–3.71) | **4.03** (3.86–4.24) | **4.10** (3.97–4.22) | **6.98** |
 | Graph neural net, mean of 5 seeds | 3.80 (3.62–4.10) | 4.45 (4.13–4.87) | 4.66 (4.28–5.04) | 7.47 |
@@ -167,36 +180,36 @@ The dates and snapshot counts are stored with a hash of the displayed CSV in `ou
 - **40 and 60 minutes.** LightGBM is best at every horizon: at 60 minutes it is 1.14 km/h below persistence, the graph net 0.58.
 - **Verdict.** With more test mornings, the 0.30 km/h gain of 14 October does not hold. The graph net still edges persistence at 20 minutes, by 0.05 to 0.07 km/h on both splits, but LightGBM does better at every horizon. Graph-net training again mostly ran to or near its 200-epoch cap (best epochs 133–199 across folds).
 
-### Bus arrival predictions and bunching (first morning, 16 October 2026)
+### Bus arrival predictions and bunching (15 weekday mornings, 16 October to 6 November 2026)
 
 `src/busarrival.py` polls DataMall Bus Arrival at the 41 stops of three shared trunk corridors (Marine Parade Rd, Telok Blangah Rd, Orchard Rd) every 2 minutes, and `src/busarrival_analysis.py` scores the predictions against inferred arrivals.
 
-**What the sample is.** One weekday morning: Friday 16 October 2026, 07:58–10:00 SGT. That is 61 sweeps and 2,501 calls, with no failed call and no quota fault. GitHub started the 06:00 scheduled run two hours late, so the morning covers the last half hour of the AM peak (to 08:30) and the start of the off-peak. Four speed-band pulls ran during it on the same key, with no quota retry. One morning is a first measurement, not a result. The numbers will be replaced as weekday mornings accumulate (`python src/busarrival_analysis.py --days ...`; outputs in `outputs/busarrival_*`). A manual afternoon run on 15 October (16:25–17:56) is the comparison below.
+**What the sample is.** Every weekday morning on the `data-collect` branch from 16 October to 6 November 2026 (commit `1aad772`; 3 November has no sweeps): 39,155 stop answers. Every morning runs to 10:00 SGT, but GitHub started most scheduled runs late, so the first answer of a morning ranges from 06:36 (26 October) to 08:58 (6 November); `mornings` in `outputs/busarrival_summary.json` lists each one. The sample therefore leans towards the end of the AM peak (06:30–08:30) and the start of the off-peak: 22,360 of the 80,040 headways are in the AM peak. The manual afternoon run of 15 October is left out. Rerun with `python src/busarrival_analysis.py --data <data-collect>/data/raw/busarrival --from 2026-10-16 --to 2026-11-06` (rerun on 6 November; the first version of this section had the 16 October morning alone).
 
-**How arrivals are inferred.** DataMall gives the next three predicted arrivals per service, but no vehicle id. Successive lists are aligned to follow each bus. A bus has arrived between two answers when its GPS-based (monitored) ETA crosses zero, or when it leaves the list while it was due. No arrival is inferred, and the headway sequence breaks, when a bus drops out while still more than 2 minutes away, when answers are more than 5 minutes apart, or when an answer is blank. At this cadence each arrival is known to ±1 minute. The full rule is in the module docstring.
+**How arrivals are inferred.** DataMall gives the next three predicted arrivals per service, but no vehicle id. Successive lists are aligned to follow each bus. A bus has arrived between two answers when its GPS-based (monitored) ETA crosses zero, or when it leaves the list while it was due. No arrival is inferred, and the headway sequence breaks, when a bus drops out while still more than 2 minutes away, when answers are more than 5 minutes apart (including the night between two mornings, and a gap that follows a bus already seen arriving), or when an answer is blank. A prediction is scored only where the bus would still have been seen arriving 10 minutes late before the end of that unbroken run of answers. At this cadence each arrival is known to ±1 minute. The full rule is in the module docstring. The longest stretch without an answer inside any headway is 245 s (`max_answer_gap_in_headway_s`), under the 5-minute limit.
 
-- **Arrivals.** 5,813 inferred: 3,807 from a monitored ETA crossing zero and 2,006 from a bus leaving the list. 17 buses were dropped far from the stop.
-- **ETA error by horizon.** 48,298 predictions. A prediction is scored only where the bus would still have been seen arriving 10 minutes late. Error is observed minus predicted, so positive means the bus came later than predicted.
+- **Arrivals.** 88,956 inferred: 54,664 from a monitored ETA crossing zero and 34,292 from a bus leaving the list. 992 buses were dropped far from the stop, and 19,433 were still listed when a gap of more than 5 minutes began, which includes every bus still listed at the end of each morning but the last.
+- **ETA error by horizon.** 748,667 predictions. Error is observed minus predicted, so positive means the bus came later than predicted.
 
-| Horizon | Predictions | MAE | Bias | Within ±1 min | Within ±2 min | 90th pct. abs. error | 15 Oct afternoon MAE |
-|---|---|---|---|---|---|---|---|
-| 0–2 min | 5,603 | 39 s | +21 s | 83.2% | 98.0% | 79 s | 44 s |
-| 2–5 min | 8,111 | 54 s | +19 s | 65.3% | 90.7% | 116 s | 53 s |
-| 5–10 min | 12,771 | 73 s | +29 s | 49.6% | 82.4% | 150 s | 69 s |
-| 10–20 min | 21,813 | 106 s | +50 s | 37.8% | 66.5% | 220 s | 99 s |
+| Horizon | Predictions | MAE | Bias | Within ±1 min | Within ±2 min | 90th pct. abs. error |
+|---|---|---|---|---|---|---|
+| 0–2 min | 85,689 | 42 s | +23 s | 83.6% | 97.3% | 78 s |
+| 2–5 min | 123,442 | 55 s | +17 s | 65.7% | 91.5% | 113 s |
+| 5–10 min | 195,493 | 72 s | +24 s | 51.8% | 83.7% | 146 s |
+| 10–20 min | 344,043 | 104 s | +40 s | 39.3% | 68.8% | 211 s |
 
-- **Buses run later than predicted at long horizons.** Arrivals from a monitored ETA crossing zero are almost unbiased up to 5 minutes out (+3 to +4 s). The bias then grows to +13 s at 5–10 minutes and +34 s at 10–20 minutes.
-- **The inference rule moves the bias.** Arrivals inferred from a bus leaving the list carry +44 to +79 s of bias, because a bus leaves the list after it has dwelt and departed. Part of the overall positive bias is therefore the method, not the predictions. The 0–2 minute row also partly scores the system against its own at-the-stop estimate.
-- **Monitored against scheduled.** 17.5% of listed buses were not monitored, so their ETA comes from the schedule. They are worse at every horizon: an MAE of 137 s at 10–20 minutes against 101 s for monitored buses, and 78 s against 37 s at 0–2 minutes.
-- **Corridors.** The three corridors are within 5 s of each other up to 10 minutes. At 10–20 minutes Telok Blangah Rd is the worst (MAE 109 s), ahead of Orchard Rd (105 s) and Marine Parade Rd (103 s).
-- **Headway regularity.** 5,229 observed headways. 483 service-stop pairs have 4 or more. Their median coefficient of variation is **0.41**: 0.42 on Marine Parade Rd, 0.43 on Orchard Rd and 0.39 on Telok Blangah Rd. The afternoon's was 0.42.
-- **Bunching.** **6.0%** of headways were shorter than a quarter of the scheduled headway for the period. That is 5.1% of the 1,067 AM-peak headways and 6.3% in the off-peak. By corridor: 5.8% on Marine Parade Rd, 5.8% on Orchard Rd and 6.4% on Telok Blangah Rd. About 98% of headways had a scheduled reference. Against the median observed headway instead, the share is 4.2%. The afternoon's share was 5.7%.
+- **Buses run later than predicted at long horizons.** Arrivals from a monitored ETA crossing zero are almost unbiased up to 10 minutes out (−2 to +4 s). The bias then grows to +21 s at 10–20 minutes.
+- **The inference rule moves the bias.** Arrivals inferred from a bus leaving the list carry +47 to +70 s of bias, because a bus leaves the list after it has dwelt and departed. Part of the overall positive bias is therefore the method, not the predictions. The 0–2 minute row also partly scores the system against its own at-the-stop estimate.
+- **Monitored against scheduled.** 17.7% of listed buses were not monitored, so their ETA comes from the schedule. They are worse at every horizon: an MAE of 155 s at 10–20 minutes against 96 s for monitored buses, and 108 s against 38 s at 0–2 minutes.
+- **Corridors.** The three corridors are within 4 s of each other up to 10 minutes. At 10–20 minutes Orchard Rd is the worst (MAE 106 s), ahead of Marine Parade Rd (104 s) and Telok Blangah Rd (103 s).
+- **Headway regularity.** 80,040 observed headways. 567 service-stop pairs have 4 or more. Their median coefficient of variation is **0.43**: 0.45 on Marine Parade Rd, 0.37 on Orchard Rd and 0.42 on Telok Blangah Rd.
+- **Bunching.** **7.3%** of headways were shorter than a quarter of the scheduled headway for the period: 5.2% of the 22,360 AM-peak headways and 8.1% of the 57,680 off-peak ones. By corridor: 7.1% on Marine Parade Rd, 7.3% on Orchard Rd and 7.5% on Telok Blangah Rd. About 98% of headways had a scheduled reference. Against the median observed headway instead, the share is 5.2%.
 - **Data quality.**
-  - 15 of the 2,501 answers (0.6%) were HTTP 200 with no service listed at all; the afternoon had 27 of 1,845. On 15 October the stops around these blanks had listed a median of 12 services. Treated as "every bus left", the blanks had produced 116 false "lost" buses in the first 16 minutes of that afternoon's data. They are now treated as missing answers.
-  - When a service was listed, its first ETA was never empty.
-  - Load codes: 91.9% "seats available" (SEA), 8.1% "standing available" (SDA) and 0.01% "limited standing" (LSD), against 94.7% / 5.3% / 0 in the afternoon.
+  - 190 of the 39,155 answers (0.5%) were HTTP 200 with no service listed at all. In the 15 October test run the stops around these blanks had listed a median of 12 services, and treated as "every bus left", the blanks produced 116 false "lost" buses in 16 minutes. They are treated as missing answers.
+  - When a service was listed, its first ETA was empty in 0.07% of cases.
+  - Load codes: 89.0% "seats available" (SEA), 10.9% "standing available" (SDA) and 0.04% "limited standing" (LSD).
   - Every monitored bus had a position; unmonitored ones report 0.0, 0.0.
-  - Bus types: 58.2% single-deck, 41.7% double-deck, 0.1% bendy.
+  - Bus types: 58.7% single-deck, 41.3% double-deck, 0.04% bendy.
 
 ### Bus finance and fares
 
@@ -247,15 +260,6 @@ Fare scenarios (Scenarios sheet):
 - **Exposure gap.** Official bus-km stops in 2014. The 2017 statements imply about 1.19 M bus-km a day, so a public-bus accident rate per bus-km for 2022–2025 cannot be rebuilt from public data.
 - **Live incidents (DataMall).** 167 distinct incidents were reported from 13 October 21:44 to 14 October 09:40. 124 of them were on expressways, which few bus routes use. Off expressways, 6 of 43 (14%, 95% CI 5–28%) fell on bus-route segments, which make up 23% of non-expressway road length. Nine were accidents, and none was on a bus-route segment. Half a day of data supports no conclusion; the archive grows with the collector.
 
-### Reliability review, 3 October 2026
-
-- Filtering anomaly flags before deduplicating stops restores OD evidence for **14 median-baseline-only stops**. All **71 median-flagged stops** now have OD evidence, up from 57. Their categories and the underlying monthly counts are unchanged. `flag_baseline` identifies which comparison supplied the flag; the OD change itself remains July → August.
-- Regression fixtures cover missing/invalid speeds, insufficient coverage and per-link sample counts. The saved real-data window retains the same 3,378 eligible links as the previous algorithm; the fixtures demonstrate the edge cases rather than claiming the current sample had false congestion.
-- A run with insufficient observations now replaces previous rankings with an empty result and records the actual observation window. Smoke output is separate. Missing data is not presented as proof of no congestion.
-- The mutation check first requires the full suite to pass and verifies each changed module can compile/import. Test collection or environment failures no longer count as detected bugs.
-
-See [review evidence and reproduction details](docs/REVIEW_20261003.md).
-
 ## Method
 
 | Step | Script | What it does |
@@ -294,46 +298,66 @@ Table and column definitions are in [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIO
   - 236 of 26,842 route rows skip a sequence number.
   - One stop lies outside Singapore: Larkin Terminal in Johor Bahru, on cross-border service 170.
 - **Tests:**
-  - 328 tests, and `tests/mutate.py`, which makes 184 deliberate bugs that must each fail at least one test. CI runs both.
-  - The 151 mutants added for the collector (eight of them for the GitHub Actions morning and night windows, holidays, quota backoff and the quota exit, 11 for the morning loop's slots, backups and stop, 22 for the early triggers, the timeout bound and telling night runs from morning ones, and 15 for the night loop, nine of these 37 in `collect.yml` itself), the multi-morning screen, the forecasts, the safety brief, the finance model, the Bus Arrival collector and analysis (37, four in `busarrival.yml`) and the 23 October rerun (six: day folders, the rebuilt inputs and the whole-day bootstrap) run only the test files for their module. A mutant of a workflow file is tested, not compiled.
+  - 367 tests, and `tests/mutate.py`, which makes 189 deliberate bugs that must each fail at least one test. CI runs both on Linux and the tests on Windows. `tests/test_readme_numbers.py` checks the headline numbers in this README against the committed outputs.
   - The finance tests evaluate the workbook's formulas without Excel (pycel) and compare 28 headline cells and the scenario grid with the Python model.
-  - The check has found test gaps three times, and each was closed:
-    - the first test set let 3 of 13 bugs through;
-    - the anomaly rules let 3 of 18 through;
-    - the tests for this round's modules let 2 of 51 through: the AM window within a morning, and the cache's link alignment. A third mutant looped forever against the paging test double, which now ends.
-    - the first Bus Arrival tests let 1 of 23 through: the tie rule in the list alignment. A fixture with a tie now pins it.
-    - the morning-loop tests let 1 of 12 through: a manual run's first pull must ignore a pull made just before it.
+  - Which tests each mutant runs, and the test gaps the check has found: [`docs/TESTING.md`](docs/TESTING.md).
 
 ### Limits of the numbers
 
 - Straight-line catchments overstate access and the OSM walking network understates it. The two bracket the true figure.
 - Headway bands describe scheduled service, not observed buses.
 - Speed bands describe general traffic. Buses also stop at bus stops.
-- Speed coverage is estimated from matched segment lengths, not a union of road geometry. Band midpoint speeds and the resulting priority scores are screening approximations; the AM sample covers six mornings (16–23 October 2026), and the night reference only 01:56–05:00.
+- Speed coverage is estimated from matched segment lengths, not a union of road geometry. Band midpoint speeds and the resulting priority scores are screening approximations; the AM sample covers 14 mornings (16 October to 5 November 2026), and the night reference only 00:32–05:00.
 - The finance model's fare-group and transfer shares are 2018–2021 proxies, and monthly and concession passes are not modelled. Its revenue is 17.6% above LTA's restated audited figure, and the README reports that gap rather than tuning it away.
 - Traffic Police bus counts cover all bus types, and there is no public bus-km series after 2014, so public-bus accident rates per bus-km after 2017 cannot be rebuilt.
 - Bus Arrival publishes predictions only, so observed arrivals are inferred from when a bus leaves the next-bus list or its monitored ETA crosses zero. At a 2-minute cadence each arrival is known to about ±1 minute, which is coarse against the 0–2 minute horizon, and part of that horizon scores the system against its own at-the-stop estimate. Headways and bunching come from these inferred arrivals, not from vehicle logs or the operators' fleet management systems.
 - A surveillance flag with no verified cause is a lead. It becomes a finding when a source or the next month confirms it.
 
+## What can be rebuilt
+
+Every output is committed. What a clean clone can regenerate depends on the raw inputs, which are not committed (see Data sources):
+
+| Result | Raw inputs | From a clean clone |
+|---|---|---|
+| Tests and the mutation check | committed fixtures | Yes |
+| Bus Arrival accuracy, headways and bunching | `data-collect` branch | Yes, no key. `data-collect` at commit `1aad772` with `--from 2026-10-16 --to 2026-11-06` gives the committed outputs |
+| Bus priority screen | `data-collect` speed bands and `outputs/corridor_links.csv` | Yes, no key. It uses every morning on the checkout; at `1aad772` that is the 14 mornings above |
+| Forecasts from 23 October on | `data-collect` speed bands | Yes, no key; needs PyTorch. The 14 October result used the laptop archive, which is not published |
+| Finance workbook | the database with the OD files below | The tests rebuild the workbook from the committed tables and evaluate its formulas; `src/finance.py` needs the OD files |
+| Safety brief | the database, `data/reference/safety/` and the incident archive | The reference tables are committed and `src/fetch_safety.py` refreshes them without a key. The live-incident part used the laptop collector's archive of 13–14 October, which is not published |
+| Corridors and the network database | DataMall routes, services and stops (key) | Only against the current network: DataMall serves today's routes, and the outputs used the pull of 26 September 2026 |
+| Demand and anomalies | DataMall stop volumes for 2026-02, 2026-06, 2026-07 and 2026-08 (key) | Only while DataMall still serves those months; it serves recent months only. `src/datamall.py pv` asks for exactly these months and exits non-zero naming any it did not get |
+| Origin-destination | DataMall OD volumes for 2026-07 and 2026-08 (key) | As for demand |
+| Walking coverage | URA and SingStat (no key), the BBBike OSM extract | Yes, from today's BBBike extract rather than that of 20 September 2026 |
+
+`python run_all.py --check` lists the raw files the full rebuild still needs and exits with status 2 when any is missing; `python run_all.py` does the same check before it runs anything.
+
 ## Run it
 
+Python 3.11. From a clean clone, with no DataMall key:
+
 ```bash
-pip install -r requirements.txt
-python src/fetch_public.py                          # public data, no key needed
+pip install -r requirements.txt -c constraints.txt   # constraints.txt: the versions of the Linux CI run
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # forecasts only
+python -m pytest -q tests && python tests/mutate.py
+git fetch origin data-collect
+git worktree add ../dc 1aad772                      # the data-collect commit the outputs used (origin/data-collect: the latest)
+python src/busarrival_analysis.py --data ../dc/data/raw/busarrival --from 2026-10-16 --to 2026-11-06
+python src/cloud_inputs.py ../dc && python src/priority.py   # priority screen on every morning in ../dc
+python src/forecast.py --cv                         # leave one morning out (or --test-from 2026-10-22 --val-days 1)
+python run_all.py --check                           # the raw inputs the full rebuild still needs
+```
+
+The full rebuild needs a DataMall account key and the raw files in the table above:
+
+```bash
+python src/fetch_public.py                          # OSM stops, URA boundaries and land use, SingStat (no key)
 curl -o data/raw/Singapore.osm.gz https://download.bbbike.org/osm/bbbike/Singapore/Singapore.osm.gz
-LTA_KEY=... python src/datamall.py static pv        # DataMall (free account key)
-LTA_KEY=... python src/datamall.py od 202608 202607  # origin-destination volumes
-LTA_KEY=... python src/collect.py run --until 202610302359   # speed bands every 15 min, incidents every 2 min
-git fetch origin data-collect                       # weekday-morning and night snapshots from GitHub Actions (from 16 Oct 2026)
-git worktree add ../sgbus-data origin/data-collect  # Bus Arrival sweeps are under data/raw/busarrival/
-python src/busarrival_analysis.py --data ../sgbus-data/data/raw/busarrival   # ETA accuracy, headways, bunching
+LTA_KEY=... python src/datamall.py static pv od     # network; stop volumes 2026-02/06/07/08; OD 2026-07/08
+LTA_KEY=... python src/collect.py run --until YYYYMMDDHHMM   # speed bands every 15 min, incidents every 2 min
 python src/fetch_safety.py                          # SingStat / data.gov.sg safety and ridership tables
 python run_all.py                                   # walking network (first run), database, analyses, dashboard
-python src/forecast.py                              # forecasts (PyTorch: pip install torch)
-# without the raw route files: the data-collect snapshots and outputs/corridor_links.csv
-git worktree add ../dc origin/data-collect && python src/cloud_inputs.py ../dc && python src/priority.py
-python src/forecast.py --test-from 2026-10-22 --val-days 1   # or --cv: leave one morning out
-python -m pytest -q tests && python tests/mutate.py
+python src/forecast.py                              # forecasts
 ```
 
 ## Data sources
@@ -350,13 +374,15 @@ python -m pytest -q tests && python tests/mutate.py
 - LTA DataMall Traffic Incidents, archived by the collector from 13 October 2026.
 - LTA DataMall Bus Arrival v3, archived at 41 stops from 15 October 2026.
 
-Raw data is not committed. `data/raw/` is rebuilt by the fetch commands above.
+Raw data is not committed; [What can be rebuilt](#what-can-be-rebuilt) says which of it the fetch commands still return.
+
+The code is under the MIT licence ([`LICENSE`](LICENSE)). The data, documents and models above stay under their own terms: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ### The collector
 
 `src/collect.py` runs for weeks without a terminal.
 
-- **Start.** Run it as its own process so that closing a session does not stop it. In PowerShell, from the repository root: set `$env:LTA_KEY`, then `Start-Process python -ArgumentList "src/collect.py","run","--until","202610302359" -WindowStyle Hidden`, then clear the variable. The key is read once and never written anywhere.
+- **Start.** Run it as its own process so that closing a session does not stop it. In PowerShell, from the repository root: set `$env:LTA_KEY`, then `Start-Process python -ArgumentList "src/collect.py","run","--until","YYYYMMDDHHMM" -WindowStyle Hidden`, then clear the variable. The key is read once and never written anywhere.
 - **Status.** `python src/collect.py status` shows the process id, the latest snapshot and the end of the log.
 - **Stop.** `python src/collect.py stop` writes a stop file, and the collector exits within about 10 seconds. You can also stop the process whose id is in `data/raw/datamall/collector.pid`.
 - **Limits.** Sleep or a reboot stops the collector. Gaps show up in the file list and in `collector.log`.
