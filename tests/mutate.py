@@ -181,7 +181,7 @@ MUTANTS = [
     # Cloud rerun (23 October 2026): day folders on data-collect, inputs without the raw route files.
     ("speed_cache.py", 'd.rglob("sb_*.csv.gz")', 'd.glob("sb_*.csv.gz")', CO),
     ("cloud_inputs.py", 'pd.read_csv(path, dtype={"from_stop": str, "to_stop": str})', "pd.read_csv(path)", CI),
-    ("cloud_inputs.py", "link.symlink_to(dc, target_is_directory=True)", "link.mkdir(parents=True, exist_ok=True)", CI),
+    ("cloud_inputs.py", "    link_dir(link, dc)\n", "    link.mkdir(parents=True, exist_ok=True)\n", CI),
     # Forecasting.
     ("forecast.py", "return counts[:, inv].astype(float)", "return np.ones((n_boot, len(inv)))", FC),
     ("forecast.py", "draws = rng.integers(0, len(u), size=(n_boot, len(u)))", "draws = rng.integers(0, len(u), size=(n_boot, 1))",
@@ -277,6 +277,17 @@ MUTANTS = [
     ("busarrival_analysis.py", 'if x.get("status") == "ok" and x.get("t") and not blank(x):',
      'if x.get("status") == "ok" and x.get("t"):', BA),
     ("busarrival_analysis.py", "                if eta > horizon_end:", "                if False:", BA),
+    # Review fixes of November 2026: a gap after an arrived bus breaks the headways (the fix of PR #2), the end margin
+    # applies to every unbroken run of answers (every morning), the answer-gap measure behind
+    # max_answer_gap_in_headway_s looks back to the answer before the first arrival, and tied priority losses are
+    # ordered by stop code.
+    ("busarrival_analysis.py", 'if not any(trk["how"] == "active" for trk in active):', "if not active:", BA),
+    ("busarrival_analysis.py", "horizon_end = ends[bisect.bisect_left(ends, trk[\"hi\"])] - ", "horizon_end = ends[-1] - ", BA),
+    ("busarrival_analysis.py", "if (b - a).total_seconds() > MAX_GAP_S]", "if (b - a).total_seconds() >= MAX_GAP_S]", BA),
+    ("busarrival_analysis.py", "i = max(bisect.bisect_left(times, first) - 1, 0)", "i = bisect.bisect_left(times, first)", BA),
+    ("priority.py", 'sort_values(["bus_h_lost_per_h", "from_stop", "to_stop"],\n'
+     '                                                              ascending=[False, True, True], kind="mergesort")',
+     'sort_values("bus_h_lost_per_h", ascending=False)', ["test_priority_review.py"]),
 ]
 
 

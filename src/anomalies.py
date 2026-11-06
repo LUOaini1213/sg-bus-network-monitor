@@ -68,7 +68,19 @@ def routes(path):
     return df.groupby("BusStopCode").ServiceNo.apply(set)
 
 
-def main():
+def september_routes(path=None):
+    """The BusRoutes pull compared with April: the file given, or the newest data/raw/datamall/BusRoutes_*.json.
+    The committed outputs used the pull of 2026-09-26 (BusRoutes_20260926.json); a later pull compares April with
+    that later network instead."""
+    if path is not None:
+        return Path(path)
+    pulls = sorted(RAW.glob("BusRoutes_*.json"))
+    if not pulls:
+        raise SystemExit(f"no BusRoutes_*.json in {RAW}: run `python src/datamall.py static` or pass --routes FILE")
+    return pulls[-1]
+
+
+def main(routes_file=None):
     con = duckdb.connect(str(DB))
     s = pd.read_csv(OUT / "surveillance_2026-08_vs_baseline_median.csv", dtype={"stop": str})
     f = s[s.flag.isin(["surge", "drop"])].copy()
@@ -78,7 +90,7 @@ def main():
 
     # The April pull is kept in data/reference because DataMall only serves the current network.
     apr = routes(ROOT / "data" / "reference" / "busroutes_20260422.csv.gz")
-    sep = routes(sorted(RAW.glob("BusRoutes_2026092*.json"))[-1])
+    sep = routes(september_routes(routes_file))
     diffs = [service_diff(apr.get(k, set()), sep.get(k, set())) for k in f.stop]
     f["services_added"] = [" ".join(a) for a, _ in diffs]
     f["services_removed"] = [" ".join(r) for _, r in diffs]
@@ -125,4 +137,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser(description="Evidence table for the August 2026 surveillance flags.")
+    ap.add_argument("--routes", help="BusRoutes JSON to compare with April (default: the newest pull)")
+    main(ap.parse_args().routes)

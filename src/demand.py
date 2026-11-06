@@ -88,10 +88,22 @@ def surveillance(v, month, base, min_daily=300, z_cut=3.5, min_effect=0.25):
     return s.reset_index().sort_values("robust_z", key=abs, ascending=False)
 
 
+MONTHS = ["2026-02", "2026-06", "2026-07", "2026-08"]   # August against February, June and July
+
+
+def require_months(v, need=MONTHS):
+    """Stop with a clear message when a month the comparisons use is not in the database."""
+    absent = [m for m in need if m not in set(v.YEAR_MONTH)]
+    if absent:
+        raise SystemExit(f"stop volumes for {absent} are not in {DB}: the comparisons need {need} "
+                         "(data/raw/datamall/transport_node_bus_YYYYMM.csv; see 'What can be rebuilt' in the README)")
+
+
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
     con = duckdb.connect(str(DB))
     v = daily(con)
+    require_months(v)
     prof, tot = network_profile(v)
     prof.to_csv(OUT / "network_hourly_profile.csv", index=False)
     print(tot.round(0).to_string(index=False))
