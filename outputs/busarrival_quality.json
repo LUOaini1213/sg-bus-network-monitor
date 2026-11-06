@@ -1,30 +1,31 @@
 {
-  "answers": 2501,
+  "answers": 39155,
   "answer_status": {
-    "ok": 2501
+    "ok": 39155
   },
-  "blank_answers": 15,
-  "stop_service_answers": 31638,
-  "nextbus_missing_eta_share": 0.0,
-  "listed_buses": 89634,
+  "blank_answers": 190,
+  "stop_service_answers": 492705,
+  "nextbus_missing_eta_share": 0.0007489268426340305,
+  "listed_buses": 1407810,
   "load_share": {
-    "SEA": 0.9188142892206083,
-    "SDA": 0.08109645893299418,
-    "LSD": 8.925184639757235e-05
+    "SEA": 0.8900760756067936,
+    "SDA": 0.10948210340884068,
+    "LSD": 0.000441820984365788
   },
-  "monitored_share": 0.8254233884463484,
+  "monitored_share": 0.8228880317656502,
   "type_share": {
-    "SD": 0.5815538746457818,
-    "DD": 0.4173751031974474,
-    "BD": 0.0010710221567708682
+    "SD": 0.5870714087838558,
+    "DD": 0.41250168701742423,
+    "BD": 0.00042690419871999774
   },
   "missing_position_share_monitored": 0.0,
   "tracks": {
-    "zero": 3807,
-    "gone": 2006,
-    "open": 1471,
-    "lost": 17
+    "zero": 54664,
+    "gone": 34292,
+    "gap": 19433,
+    "open": 2907,
+    "lost": 992
   },
-  "predictions": 66467,
-  "negative_horizon_share": 0.0004212616787277897
+  "predictions": 1061929,
+  "negative_horizon_share": 0.00023447895292434806
 }
