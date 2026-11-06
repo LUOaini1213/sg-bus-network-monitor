@@ -138,7 +138,10 @@ def screen_priority(cl):
              & np.isfinite(cl.v_ref) & (cl.v_ref > 0))
     ok = cl[valid].copy()
     ok["bus_h_lost_per_h"] = ok.AM_Peak_bph * ok.link_km * (1 / ok.v_peak - 1 / ok.v_ref).clip(lower=0)
-    return ok[np.isfinite(ok.bus_h_lost_per_h)].sort_values("bus_h_lost_per_h", ascending=False)
+    # Ties (mostly the links with no loss) are ordered by stop codes, so the CSV and its hash do not depend on
+    # the platform or on the order the database returned the links in.
+    return ok[np.isfinite(ok.bus_h_lost_per_h)].sort_values(["bus_h_lost_per_h", "from_stop", "to_stop"],
+                                                              ascending=[False, True, True], kind="mergesort")
 
 
 def write_screen(m, cl, peak_snaps, ref_snaps, *, any_window=False, output_dir=None):

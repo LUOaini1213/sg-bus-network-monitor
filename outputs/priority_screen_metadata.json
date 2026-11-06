@@ -3,13 +3,26 @@
   "snapshot_timezone": "Asia/Singapore",
   "peak": {
     "min_snapshot": "2026-10-16T08:37:00",
-    "max_snapshot": "2026-10-23T09:30:00",
-    "n_snapshots": 46
+    "max_snapshot": "2026-11-05T09:30:00",
+    "n_snapshots": 103,
+    "by_hour": {
+      "07": 16,
+      "08": 46,
+      "09": 41
+    }
   },
   "night": {
     "min_snapshot": "2026-10-16T04:18:00",
-    "max_snapshot": "2026-10-23T05:00:00",
-    "n_snapshots": 16
+    "max_snapshot": "2026-11-06T04:37:00",
+    "n_snapshots": 58,
+    "by_hour": {
+      "00": 1,
+      "01": 6,
+      "02": 7,
+      "03": 12,
+      "04": 17,
+      "05": 15
+    }
   },
   "mornings": [
     {
@@ -35,11 +48,43 @@
     {
       "date": "2026-10-23",
       "n_snapshots": 9
+    },
+    {
+      "date": "2026-10-26",
+      "n_snapshots": 9
+    },
+    {
+      "date": "2026-10-27",
+      "n_snapshots": 8
+    },
+    {
+      "date": "2026-10-28",
+      "n_snapshots": 8
+    },
+    {
+      "date": "2026-10-29",
+      "n_snapshots": 7
+    },
+    {
+      "date": "2026-10-30",
+      "n_snapshots": 7
+    },
+    {
+      "date": "2026-11-02",
+      "n_snapshots": 9
+    },
+    {
+      "date": "2026-11-04",
+      "n_snapshots": 5
+    },
+    {
+      "date": "2026-11-05",
+      "n_snapshots": 4
     }
   ],
   "min_snapshots": 4,
-  "min_mornings_per_link": 3,
+  "min_mornings_per_link": 7,
   "min_valid_coverage": 0.5,
   "eligible_links": 3378,
-  "csv_sha256": "d2e283e3a969a44ca7a2b647a870945046bb06922c58e7f7d4186aa43fb5e6a3"
+  "csv_sha256": "d480e35dc2482e58e00ca92b40c9ad81c751ba1354d7aa4595a54371a760072b"
 }

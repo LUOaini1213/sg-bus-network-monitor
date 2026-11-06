@@ -1,147 +1,719 @@
 {
   "summary": {
-    "mornings": 6,
-    "median_pairwise_top20_overlap": 0.55,
-    "median_pairwise_kendall_tau": 0.8014581587531243,
-    "combined_top20_in_daily_top20_on_half_or_more_mornings": 17
+    "mornings": 14,
+    "median_pairwise_top20_overlap": 0.5,
+    "median_pairwise_kendall_tau": 0.7964136310206874,
+    "combined_top20_in_daily_top20_on_half_or_more_mornings": 13
   },
   "pairs": [
     {
       "a": "2026-10-16",
       "b": "2026-10-19",
       "common_links": 3378,
-      "top20_overlap": 0.3,
-      "kendall_tau": 0.7306540471987528
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.7210437895744802
     },
     {
       "a": "2026-10-16",
       "b": "2026-10-20",
       "common_links": 3378,
       "top20_overlap": 0.5,
-      "kendall_tau": 0.7330400068416787
+      "kendall_tau": 0.7246017559846554
     },
     {
       "a": "2026-10-16",
       "b": "2026-10-21",
       "common_links": 3378,
       "top20_overlap": 0.5,
-      "kendall_tau": 0.72218199437331
+      "kendall_tau": 0.7148693901147646
     },
     {
       "a": "2026-10-16",
       "b": "2026-10-22",
       "common_links": 3378,
-      "top20_overlap": 0.55,
-      "kendall_tau": 0.733989306295259
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.72477038658812
     },
     {
       "a": "2026-10-16",
       "b": "2026-10-23",
       "common_links": 3378,
       "top20_overlap": 0.55,
-      "kendall_tau": 0.7382147137241125
+      "kendall_tau": 0.7304273515386337
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-26",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.712930482889891
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-27",
+      "common_links": 3378,
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.7182688085414226
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-28",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.7185627418993131
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7198627422986974
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7171003558304845
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.7060171682572757
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.2,
+      "kendall_tau": 0.6854984126548307
+    },
+    {
+      "a": "2026-10-16",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.7094413746389608
     },
     {
       "a": "2026-10-19",
       "b": "2026-10-20",
       "common_links": 3378,
       "top20_overlap": 0.55,
-      "kendall_tau": 0.8051675076402292
+      "kendall_tau": 0.7964136310206874
     },
     {
       "a": "2026-10-19",
       "b": "2026-10-21",
       "common_links": 3378,
-      "top20_overlap": 0.6,
-      "kendall_tau": 0.8014581587531243
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.7963282781644845
     },
     {
       "a": "2026-10-19",
       "b": "2026-10-22",
       "common_links": 3378,
-      "top20_overlap": 0.5,
-      "kendall_tau": 0.7965932066648179
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.7917096745797169
     },
     {
       "a": "2026-10-19",
       "b": "2026-10-23",
       "common_links": 3378,
       "top20_overlap": 0.35,
-      "kendall_tau": 0.8005390863730009
+      "kendall_tau": 0.7948312247162336
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-26",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.793259143510078
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-27",
+      "common_links": 3378,
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.799084522971367
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-28",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7959566582983685
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7870223679762515
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.786836726165922
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.3,
+      "kendall_tau": 0.7804139250709358
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.25,
+      "kendall_tau": 0.7626733895062495
+    },
+    {
+      "a": "2026-10-19",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7617352865307924
     },
     {
       "a": "2026-10-20",
       "b": "2026-10-21",
       "common_links": 3378,
       "top20_overlap": 0.8,
-      "kendall_tau": 0.8279937791824443
+      "kendall_tau": 0.822332391284135
     },
     {
       "a": "2026-10-20",
       "b": "2026-10-22",
       "common_links": 3378,
       "top20_overlap": 0.75,
-      "kendall_tau": 0.8305949264785688
+      "kendall_tau": 0.826189237375853
     },
     {
       "a": "2026-10-20",
       "b": "2026-10-23",
       "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.8146363122333065
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-26",
+      "common_links": 3378,
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.8134848363794978
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-27",
+      "common_links": 3378,
       "top20_overlap": 0.5,
-      "kendall_tau": 0.8206996171340137
+      "kendall_tau": 0.8173115260701964
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-28",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8081789450146342
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8007084397212817
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.8001496354872352
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8063031111520792
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.7597290878390685
+    },
+    {
+      "a": "2026-10-20",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.7596373125500816
     },
     {
       "a": "2026-10-21",
       "b": "2026-10-22",
       "common_links": 3378,
-      "top20_overlap": 0.7,
-      "kendall_tau": 0.8224629875352726
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.8184162110795862
     },
     {
       "a": "2026-10-21",
       "b": "2026-10-23",
       "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.8132842957379898
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-10-26",
+      "common_links": 3378,
+      "top20_overlap": 0.65,
+      "kendall_tau": 0.8152487275616737
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-10-27",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.818069928560854
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-10-28",
+      "common_links": 3378,
       "top20_overlap": 0.55,
-      "kendall_tau": 0.8170954291365689
+      "kendall_tau": 0.808798233422164
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.7995112339819872
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.7964720336698898
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8001144974750845
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.3,
+      "kendall_tau": 0.7627337032262166
+    },
+    {
+      "a": "2026-10-21",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.7692387946202145
     },
     {
       "a": "2026-10-22",
       "b": "2026-10-23",
       "common_links": 3378,
+      "top20_overlap": 0.7,
+      "kendall_tau": 0.814914298199634
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-10-26",
+      "common_links": 3378,
+      "top20_overlap": 0.75,
+      "kendall_tau": 0.8153661578317576
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-10-27",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8149486354378982
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-10-28",
+      "common_links": 3378,
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.8108405615149472
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-10-29",
+      "common_links": 3378,
       "top20_overlap": 0.65,
-      "kendall_tau": 0.8184521262829367
+      "kendall_tau": 0.8012856525896691
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.805999304039809
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8043393763679899
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.25,
+      "kendall_tau": 0.7576464189154959
+    },
+    {
+      "a": "2026-10-22",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7590819625278359
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-10-26",
+      "common_links": 3378,
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.81581813525986
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-10-27",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.8065183669335313
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-10-28",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8092797591543932
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.65,
+      "kendall_tau": 0.7967302563039826
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8015275767521538
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7992222824785311
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.25,
+      "kendall_tau": 0.7520970804047116
+    },
+    {
+      "a": "2026-10-23",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.7550204519445726
+    },
+    {
+      "a": "2026-10-26",
+      "b": "2026-10-27",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.818365507364148
+    },
+    {
+      "a": "2026-10-26",
+      "b": "2026-10-28",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8110834735302527
+    },
+    {
+      "a": "2026-10-26",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8007151492647587
+    },
+    {
+      "a": "2026-10-26",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.55,
+      "kendall_tau": 0.8039383489800831
+    },
+    {
+      "a": "2026-10-26",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8125818073868049
+    },
+    {
+      "a": "2026-10-26",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.25,
+      "kendall_tau": 0.7637988436824773
+    },
+    {
+      "a": "2026-10-26",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.7581746858584911
+    },
+    {
+      "a": "2026-10-27",
+      "b": "2026-10-28",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.8166596869862006
+    },
+    {
+      "a": "2026-10-27",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.8082530431938708
+    },
+    {
+      "a": "2026-10-27",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.8036739999320489
+    },
+    {
+      "a": "2026-10-27",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.8084452252200379
+    },
+    {
+      "a": "2026-10-27",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.2,
+      "kendall_tau": 0.7770486093279342
+    },
+    {
+      "a": "2026-10-27",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7779510950244726
+    },
+    {
+      "a": "2026-10-28",
+      "b": "2026-10-29",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8042707461548524
+    },
+    {
+      "a": "2026-10-28",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.8009797915425803
+    },
+    {
+      "a": "2026-10-28",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.8057409396551624
+    },
+    {
+      "a": "2026-10-28",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.4,
+      "kendall_tau": 0.7594394861750547
+    },
+    {
+      "a": "2026-10-28",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7609895890200533
+    },
+    {
+      "a": "2026-10-29",
+      "b": "2026-10-30",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7975941927591144
+    },
+    {
+      "a": "2026-10-29",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.6,
+      "kendall_tau": 0.7914553674213809
+    },
+    {
+      "a": "2026-10-29",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.25,
+      "kendall_tau": 0.773600375041637
+    },
+    {
+      "a": "2026-10-29",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7662731769267934
+    },
+    {
+      "a": "2026-10-30",
+      "b": "2026-11-02",
+      "common_links": 3378,
+      "top20_overlap": 0.5,
+      "kendall_tau": 0.7971773936308884
+    },
+    {
+      "a": "2026-10-30",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.25,
+      "kendall_tau": 0.7576421309055748
+    },
+    {
+      "a": "2026-10-30",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.3,
+      "kendall_tau": 0.7626553810266568
+    },
+    {
+      "a": "2026-11-02",
+      "b": "2026-11-04",
+      "common_links": 3378,
+      "top20_overlap": 0.3,
+      "kendall_tau": 0.7506382340784697
+    },
+    {
+      "a": "2026-11-02",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.35,
+      "kendall_tau": 0.7574833114011276
+    },
+    {
+      "a": "2026-11-04",
+      "b": "2026-11-05",
+      "common_links": 3378,
+      "top20_overlap": 0.45,
+      "kendall_tau": 0.7484846533619436
     }
   ],
   "vs_combined": [
     {
       "morning": "2026-10-16",
       "top20_overlap_with_combined": 0.65,
-      "kendall_tau_with_combined": 0.7854552406930326
+      "kendall_tau_with_combined": 0.766747946330769
     },
     {
       "morning": "2026-10-19",
-      "top20_overlap_with_combined": 0.55,
-      "kendall_tau_with_combined": 0.8628012100619781
+      "top20_overlap_with_combined": 0.6,
+      "kendall_tau_with_combined": 0.850292297228243
     },
     {
       "morning": "2026-10-20",
-      "top20_overlap_with_combined": 0.8,
-      "kendall_tau_with_combined": 0.8895302641167814
+      "top20_overlap_with_combined": 0.75,
+      "kendall_tau_with_combined": 0.8727900592482406
     },
     {
       "morning": "2026-10-21",
       "top20_overlap_with_combined": 0.75,
-      "kendall_tau_with_combined": 0.8824046532245703
+      "kendall_tau_with_combined": 0.8725982013274063
     },
     {
       "morning": "2026-10-22",
-      "top20_overlap_with_combined": 0.85,
-      "kendall_tau_with_combined": 0.8842533695337753
+      "top20_overlap_with_combined": 0.8,
+      "kendall_tau_with_combined": 0.8725047157868926
     },
     {
       "morning": "2026-10-23",
+      "top20_overlap_with_combined": 0.55,
+      "kendall_tau_with_combined": 0.8674206812495097
+    },
+    {
+      "morning": "2026-10-26",
+      "top20_overlap_with_combined": 0.8,
+      "kendall_tau_with_combined": 0.8720985409672406
+    },
+    {
+      "morning": "2026-10-27",
+      "top20_overlap_with_combined": 0.65,
+      "kendall_tau_with_combined": 0.8749771118279569
+    },
+    {
+      "morning": "2026-10-28",
       "top20_overlap_with_combined": 0.6,
-      "kendall_tau_with_combined": 0.8832090548151929
+      "kendall_tau_with_combined": 0.8677677559435336
+    },
+    {
+      "morning": "2026-10-29",
+      "top20_overlap_with_combined": 0.65,
+      "kendall_tau_with_combined": 0.8574095871597955
+    },
+    {
+      "morning": "2026-10-30",
+      "top20_overlap_with_combined": 0.6,
+      "kendall_tau_with_combined": 0.8577099897361214
+    },
+    {
+      "morning": "2026-11-02",
+      "top20_overlap_with_combined": 0.6,
+      "kendall_tau_with_combined": 0.8576189518184326
+    },
+    {
+      "morning": "2026-11-04",
+      "top20_overlap_with_combined": 0.25,
+      "kendall_tau_with_combined": 0.8120737736767862
+    },
+    {
+      "morning": "2026-11-05",
+      "top20_overlap_with_combined": 0.5,
+      "kendall_tau_with_combined": 0.814369412874003
     }
   ]
 }

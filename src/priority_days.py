@@ -192,7 +192,9 @@ def screen(m, cl, times, kmh, links, holidays=HOLIDAYS_2026, min_snapshots=MIN_S
     def window(mask):
         t = pd.DatetimeIndex(times[mask])
         return {"min_snapshot": t.min().isoformat() if len(t) else None,
-                "max_snapshot": t.max().isoformat() if len(t) else None, "n_snapshots": int(mask.sum())}
+                "max_snapshot": t.max().isoformat() if len(t) else None, "n_snapshots": int(mask.sum()),
+                # Snapshots per hour of the day (SGT): shows which part of the window the sample actually covers.
+                "by_hour": {f"{h:02d}": int(n) for h, n in sorted(pd.Series(t.hour).value_counts().items())}}
 
     peak_mask = am & np.isin(dates, days)
     meta = {"mode": "weekday_am_peak_multi_morning", "snapshot_timezone": "Asia/Singapore",
