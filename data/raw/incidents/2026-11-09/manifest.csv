@@ -1,0 +1,2 @@
+snapshot_sgt,file,rows,sha256,bytes,pull_seconds,quota_retries,status
+2026-11-09T02:19,inc_20261109_0219.jsonl.gz,3,52f939b79dd189bd7e4d89a0acbe553dfd881327c7ebda1e01f793dcb65477d8,388,0.3,0,ok
