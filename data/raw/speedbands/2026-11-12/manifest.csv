@@ -1,0 +1,2 @@
+snapshot_sgt,file,rows,sha256,bytes,pull_seconds,quota_retries,status
+2026-11-12T04:09,sb_20261112_0409.csv.gz,143787,fa454fcef542163ce74b24f6b2efeb220ed7553c4c539b6d28fd4fe665107a2c,412614,39.1,0,ok
